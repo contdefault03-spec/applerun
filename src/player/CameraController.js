@@ -59,12 +59,14 @@ export class CameraController {
       avatar.char.root.visible = true;
       head.y += h * (crouch ? 0.62 : 0.86);
       this.target.lerp(head, this.target.lengthSq() === 0 ? 1 : Math.min(1, dt * 18));
-      const dist = THREE.MathUtils.lerp(this.distance * (h / 1.8) ** 0.5, 1.7, this.aimBlend);
+      const inside = avatar.interior || this.interior;
+      const dist = THREE.MathUtils.lerp((inside ? 2.6 : this.distance) * (h / 1.8) ** 0.5, 1.7, this.aimBlend);
       const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
       const pivot = this.target.clone().addScaledVector(right, 0.55 * this.aimBlend + 0.25);
       const back = this.forward().multiplyScalar(-1);
       const want = pivot.clone().addScaledVector(back, dist);
       this.placeWithCollision(pivot, want);
+      if (inside) this.camera.position.y = Math.min(this.camera.position.y, inside.H - 0.3);
       this.lookFrom(this.camera.position, pivot.clone().addScaledVector(this.forward(), 10));
     }
     this.applyFx(dt);

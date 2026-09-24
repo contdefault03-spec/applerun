@@ -1,6 +1,6 @@
 import { circleVsObb, rayVsObb } from '../../shared/map/geom.js';
 import { heightAt } from '../../shared/map/terrain.js';
-import { getLayout, WATER_LEVEL, districtAt } from '../../shared/map/layout.js';
+import { getLayout, WATER_LEVEL, districtAt, WORLD } from '../../shared/map/layout.js';
 
 // Spatial hash of oriented-box colliders (+ a small dynamic list for vehicles etc).
 // Collider: { x, z, hx, hz, rot, y0, y1, kind, walk?, dynamic? }
@@ -58,6 +58,7 @@ export class Collision {
 
   /** Terrain height plus raised sidewalks along urban roads. */
   groundAt(x, z) {
+    if (x > WORLD.maxX + 200 || z > WORLD.maxZ + 200) return -1000; // interior slots: floor comes from the interior
     const h = heightAt(x, z);
     const n = this.layout.roadIndex.nearest(x, z, 12);
     if (n && n.road.type !== 'highway' && n.road.type !== 'mountain') {
@@ -119,7 +120,7 @@ export class Collision {
       const th = rayVsObb(o, d, c, best);
       if (th >= 0 && th < best) { best = th; hit = c; }
     }
-    if (terrain) {
+    if (terrain && o[0] < WORLD.maxX + 200 && o[2] < WORLD.maxZ + 200) {
       // march the heightfield
       const st = 1.0;
       for (let t = 0; t < best; t += st) {

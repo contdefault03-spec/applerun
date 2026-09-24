@@ -1,0 +1,313 @@
+import * as THREE from 'three';
+import { getLayout } from '../../shared/map/layout.js';
+import { interiorOrigin, INTERIOR_TYPE, RESIDENTIAL } from '../../shared/interiors.js';
+import { mulberry32 } from '../../shared/rng.js';
+import { Prefabs, mat } from './furniture.js';
+
+// Modular interior generator + enter/exit logic. Every building on the map is enterable:
+// its interior is generated on demand from reusable room layouts and furniture prefabs,
+// placed in its own slot far outside the city (see shared/interiors.js).
+export const DOME_ID = 1000;
+const NAMES = {
+  house: 'House', apartment: 'Apartment', safehouse: 'Your Safehouse', office: 'Office', shop: '24/7 Mart', restaurant: 'Diner', bar: 'The Rusty Bar',
+  gunstore: 'Bayview Guns', police: 'Police Station', hospital: 'Bayview General Hospital', gym: 'Iron Gym', garage: 'Garage', warehouse: 'Warehouse', dome: 'Bayview Dome',
+};
+const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'] };
+const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e' };
+
+export class InteriorManager {
+  constructor(game) {
+    this.game = game;
+    this.layout = getLayout();
+    this.interiors = new Map();
+    this.current = null;
+    this.fade = document.createElement('div');
+    Object.assign(this.fade.style, { position: 'fixed', inset: 0, background: '#000', opacity: 0, transition: 'opacity .25s', pointerEvents: 'none', zIndex: 20 });
+    document.body.append(this.fade);
+    // door lookup grid
+    this.doorGrid = new Map();
+    const add = (id, x, z) => { const k = `${Math.floor(x / 10)},${Math.floor(z / 10)}`; (this.doorGrid.get(k) || this.doorGrid.set(k, []).get(k)).push({ id, x, z }); };
+    for (const b of this.layout.buildings) add(b.id, b.door.x, b.door.z);
+    const dm = this.layout.landmarks.dome;
+    this.domeDoor = { x: dm.x, z: dm.z - dm.hz - 1.5, rot: Math.PI };
+    add(DOME_ID, this.domeDoor.x, this.domeDoor.z);
+  }
+
+  typeOf(bid) { if (bid === DOME_ID) return 'dome'; return INTERIOR_TYPE[this.layout.buildings[bid].type] || 'house'; }
+  building(bid) { return bid === DOME_ID ? { id: DOME_ID, type: 'dome', door: this.domeDoor, special: 'dome' } : this.layout.buildings[bid]; }
+
+  nearestDoor(x, z, maxD = 2.6) {
+    let best = null, bd = maxD;
+    const ci = Math.floor(x / 10), cj = Math.floor(z / 10);
+    for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) for (const d of this.doorGrid.get(`${i},${j}`) || []) {
+      const dd = Math.hypot(d.x - x, d.z - z);
+      if (dd < bd) { bd = dd; best = d; }
+    }
+    return best;
+  }
+
+  get(bid) {
+    if (!this.interiors.has(bid)) this.interiors.set(bid, this.build(bid));
+    return this.interiors.get(bid);
+  }
+
+  // ------------------------------------------------------------------ building
+  build(bid) {
+    const type = this.typeOf(bid);
+    const o = interiorOrigin(bid);
+    const rnd = mulberry32(bid * 7919 + 13);
+    const g = new THREE.Group();
+    g.name = 'interior_' + bid;
+    g.position.set(o.x, 0, o.z);
+    g.visible = false;
+    this.game.engine.scene.add(g);
+    const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28] }[type] || [12, 10];
+    const [W, D] = size;
+    const H = type === 'warehouse' || type === 'dome' ? 7 : type === 'gym' || type === 'garage' ? 5 : 3.2;
+    const it = { bid, type, name: NAMES[type] || 'Building', group: g, origin: o, W, D, H, colliders: [], seats: [], uses: [], npcSpots: [], lights: [], residential: RESIDENTIAL.has(type) };
+    const b = this.building(bid);
+    if (b.special === 'safehouse') { it.type = 'safehouse'; it.name = NAMES.safehouse; it.residential = false; it.owned = true; }
+    const wallC = WALL[type] ? WALL[type][Math.floor(rnd() * WALL[type].length)] : '#e0e0e0';
+    // floor / ceiling
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mat(FLOOR[type] || '#9e9e9e', { roughness: 0.6 }));
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; g.add(floor);
+    if (type !== 'dome') { const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mat('#f5f5f5')); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil); }
+    else { const ceil = new THREE.Mesh(new THREE.SphereGeometry(W * 0.62, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat('#1f2133', { side: THREE.BackSide })); ceil.scale.y = 0.5; ceil.position.y = H - 1; g.add(ceil); }
+    // outer walls (door gap in +Z wall)
+    const wallMat = mat(wallC, { roughness: 0.9 });
+    const addWall = (x, z, w, d) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), wallMat);
+      m.position.set(x, H / 2, z); m.receiveShadow = true; g.add(m);
+      it.colliders.push({ x, z, hx: w / 2, hz: d / 2, h: H + 1 });
+    };
+    const doorW = type === 'garage' || type === 'warehouse' || type === 'dome' ? 4 : 1.6;
+    addWall(0, -D / 2, W, 0.3);
+    addWall(-W / 2, 0, 0.3, D); addWall(W / 2, 0, 0.3, D);
+    addWall(-(W / 4 + doorW / 4), D / 2, W / 2 - doorW / 2, 0.3);
+    addWall(W / 4 + doorW / 4, D / 2, W / 2 - doorW / 2, 0.3);
+    // exit door visual
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(doorW, 2.3), mat('#4e342e'));
+    door.position.set(0, 1.15, D / 2 - 0.02); door.rotation.y = Math.PI; g.add(door);
+    const exitSign = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.25), new THREE.MeshStandardMaterial({ color: '#1b5e20', emissive: '#00e676', emissiveIntensity: 1 }));
+    exitSign.position.set(0, 2.55, D / 2 - 0.2); exitSign.rotation.y = Math.PI; g.add(exitSign);
+    it.exit = { x: 0, z: D / 2 - 0.6 };
+    it.entry = { x: 0, z: D / 2 - 1.6, yaw: Math.PI };
+    // windows (emissive panes)
+    const win = new THREE.MeshStandardMaterial({ color: '#9fd3ff', emissive: '#bfe6ff', emissiveIntensity: 0.6 });
+    if (type !== 'dome' && type !== 'warehouse') for (let x = -W / 2 + 2.5; x < W / 2 - 2; x += 3.5) { const w = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.2), win); w.position.set(x, 1.8, -D / 2 + 0.17); g.add(w); }
+    // lights
+    const nl = Math.max(1, Math.min(3, Math.round((W * D) / 110)));
+    for (let i = 0; i < nl; i++) {
+      const L = new THREE.PointLight('#fff1dd', type === 'bar' ? 4 : 6, Math.max(W, D) * 1.2, 1);
+      L.position.set(-W / 2 + (W / (nl + 1)) * (i + 1), H - 0.4, 0);
+      g.add(L); it.lights.push(L);
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff4e0', emissiveIntensity: 1 }));
+      panel.rotation.x = Math.PI / 2; panel.position.set(L.position.x, H - 0.02, 0); g.add(panel);
+    }
+    // furniture helper (local coords)
+    const place = (pf, x, z, rot = 0) => {
+      pf.obj.position.set(x, 0, z); pf.obj.rotation.y = rot; g.add(pf.obj);
+      const c = Math.cos(rot), s = Math.sin(rot);
+      for (const bx of pf.boxes || []) it.colliders.push({ x: x + bx.x * c + bx.z * s, z: z - bx.x * s + bx.z * c, hx: bx.hx, hz: bx.hz, rot, h: bx.h, walk: bx.walk });
+      for (const st of pf.seats || []) it.seats.push({ x: x + st.x * c + st.z * s, z: z - st.x * s + st.z * c, rot: rot + st.rot, y: st.y, kind: st.kind || 'sit' });
+      for (const u of pf.uses || []) it.uses.push({ ...u, x: x + u.x * c + u.z * s, z: z - u.x * s + u.z * c });
+      return pf;
+    };
+    const partition = (x, z, w, d, gapAt = null, gap = 1.2) => {
+      if (gapAt === null) return addWall(x, z, w, d);
+      if (w > d) { const l = gapAt - (x - w / 2) - gap / 2, r = x + w / 2 - gapAt - gap / 2; if (l > 0.1) addWall(x - w / 2 + l / 2, z, l, d); if (r > 0.1) addWall(x + w / 2 - r / 2, z, r, d); }
+      else { const l = gapAt - (z - d / 2) - gap / 2, r = z + d / 2 - gapAt - gap / 2; if (l > 0.1) addWall(x, z - d / 2 + l / 2, w, l); if (r > 0.1) addWall(x, z + d / 2 - r / 2, w, r); }
+    };
+    const sofaC = ['#6b4f3a', '#37474f', '#5c6bc0', '#8d6e63', '#4e6e58'][Math.floor(rnd() * 5)];
+    switch (it.type) {
+      case 'house': case 'safehouse': case 'apartment': {
+        const apt = it.type === 'apartment';
+        // living room front-left, kitchen front-right, bedroom back-left, bath back-right
+        partition(0, -D / 2 + D * 0.45, W, 0.2, -W / 4, 1.3);
+        partition(W * 0.08, D * 0.05, 0.2, D * 0.9, apt ? 0.8 : 1.5, 1.3);
+        place(Prefabs.rug(2.6, 1.8), -W / 4, D / 4);
+        place(Prefabs.sofa(sofaC), -W / 4, D / 4 + 1.3, Math.PI);
+        place(Prefabs.tv(), -W / 4, D / 4 - 1.4, 0);
+        place(Prefabs.armchair(sofaC), -W / 2 + 1, D / 4, Math.PI / 2);
+        place(Prefabs.lamp(), -W / 2 + 0.7, D / 2 - 1);
+        place(Prefabs.plant(), -0.8, D / 2 - 1);
+        place(Prefabs.kitchen(2.4), W / 4 + 0.2, -0.3, 0);
+        place(Prefabs.table(1.4, 0.9), W / 4, D / 4 + 0.6);
+        place(Prefabs.chair(), W / 4 - 0.4, D / 4 + 1.3, Math.PI); place(Prefabs.chair(), W / 4 + 0.4, D / 4 + 1.3, Math.PI);
+        place(Prefabs.chair(), W / 4 - 0.4, D / 4 - 0.1, 0); place(Prefabs.chair(), W / 4 + 0.4, D / 4 - 0.1, 0);
+        place(Prefabs.bed(['#3f6ea8', '#a83f5a', '#3fa87b'][Math.floor(rnd() * 3)]), -W / 4, -D / 2 + 1.4, 0);
+        place(Prefabs.bookshelf(), -W / 2 + 0.3, -D / 2 + 3, Math.PI / 2);
+        place(Prefabs.lamp(), -W / 4 + 1.4, -D / 2 + 0.6);
+        place(Prefabs.toilet(), W / 2 - 0.6, -D / 2 + 0.6, 0);
+        place(Prefabs.bathtub(), W * 0.08 + 1, -D / 2 + 1.1, 0);
+        it.npcSpots.push({ x: -W / 4 - 0.5, z: D / 4 + 1.2, role: 'resident', sit: true }, { x: W / 4, z: 1, role: 'resident' });
+        if (it.type === 'safehouse') it.uses.push({ x: -W / 4, z: -D / 2 + 2.8, kind: 'save', label: 'Sleep & save (restore health)' });
+        break;
+      }
+      case 'shop': {
+        for (let i = 0; i < 3; i++) place(Prefabs.shelf(W * 0.45, bid + i), -W * 0.12, -D / 2 + 2.2 + i * 2.2);
+        place(Prefabs.counter(3.2), W / 2 - 2.2, D / 2 - 2.8, Math.PI / 2);
+        place(Prefabs.shelf(3, bid + 9), W / 2 - 0.4, -D / 2 + 2.5, -Math.PI / 2);
+        it.npcSpots.push({ x: W / 2 - 1.2, z: D / 2 - 2.8, role: 'shopkeeper', yaw: -Math.PI / 2, fixed: true }, { x: -W * 0.12, z: -1, role: 'civilian' });
+        it.uses.push({ x: W / 2 - 3.1, z: D / 2 - 2.8, kind: 'rob', label: 'Rob the register (crime!)' }, { x: W / 2 - 3.1, z: D / 2 - 3.8, kind: 'snack', label: 'Buy a snack ($10, +health)' });
+        break;
+      }
+      case 'restaurant': case 'bar': {
+        const bar = it.type === 'bar';
+        place(Prefabs.counter(W * 0.5, bar ? '#4e342e' : '#a1887f'), 0, -D / 2 + 1.6);
+        for (let i = 0; i < 5; i++) place(Prefabs.barStool(), -W * 0.2 + i * W * 0.1, -D / 2 + 2.5);
+        for (let i = 0; i < 4; i++) {
+          const x = -W / 2 + 2.5 + (i % 2) * (W - 5), z = -0.5 + Math.floor(i / 2) * 3.5;
+          place(Prefabs.table(1.2, 1.2, bar ? '#3e2723' : '#8d6e63'), x, z);
+          place(Prefabs.chair(), x, z + 0.95, Math.PI); place(Prefabs.chair(), x, z - 0.95, 0);
+        }
+        it.npcSpots.push({ x: 0, z: -D / 2 + 0.8, role: 'shopkeeper', yaw: 0, fixed: true }, { x: -W / 2 + 2.5, z: 0.45, role: 'civilian', sit: true }, { x: W / 2 - 2.5, z: 3.95, role: 'civilian', sit: true });
+        it.uses.push({ x: 0, z: -D / 2 + 2.6, kind: 'snack', label: bar ? 'Order a drink ($15)' : 'Order food ($15, +health)' });
+        if (bar) it.uses.push({ x: W * 0.25, z: -D / 2 + 2.6, kind: 'rob', label: 'Rob the bar (crime!)' });
+        break;
+      }
+      case 'gunstore': {
+        place(Prefabs.counter(W * 0.6, '#5d4037'), 0, -D / 2 + 2.6);
+        const models = this.game.weapons ? this.game.weapons.displayModels() : [];
+        place(Prefabs.gunrack(models.slice(0, 8)), 0, -D / 2 + 0.3);
+        place(Prefabs.gunrack(models.slice(2, 10)), -W / 2 + 0.3, 0, Math.PI / 2);
+        place(Prefabs.crate(1, '#556b2f'), W / 2 - 1.2, 1); place(Prefabs.crate(1, '#556b2f'), W / 2 - 1.2, 2.2);
+        it.npcSpots.push({ x: 0, z: -D / 2 + 1.5, role: 'shopkeeper', yaw: 0, fixed: true, name: 'Gunsmith' });
+        it.uses.push({ x: 0, z: -D / 2 + 3.6, kind: 'gunshop', label: 'Browse weapons & ammo' });
+        break;
+      }
+      case 'police': {
+        place(Prefabs.counter(5, '#37474f'), 0, D / 2 - 4, 0);
+        for (let i = 0; i < 4; i++) place(Prefabs.desk(), -W / 2 + 2.5 + (i % 2) * 4, -1 + Math.floor(i / 2) * 3, 0);
+        place(Prefabs.cell(), W / 2 - 2.2, -D / 2 + 1.8); place(Prefabs.cell(), W / 2 - 5.6, -D / 2 + 1.8);
+        place(Prefabs.bookshelf(), -W / 2 + 0.3, -D / 2 + 2, Math.PI / 2);
+        it.npcSpots.push({ x: 0, z: D / 2 - 5, role: 'police', yaw: 0, fixed: true, name: 'Desk Sergeant' }, { x: -W / 2 + 2.5, z: -0.4, role: 'police', sit: true }, { x: 2, z: 1, role: 'police' });
+        it.uses.push({ x: 0, z: D / 2 - 2.8, kind: 'surrender', label: 'Turn yourself in (clear wanted level, pay fine)' }, { x: 1.5, z: D / 2 - 2.8, kind: 'policejob', label: 'Sign up for police duty' });
+        it.cellSpot = { x: W / 2 - 2.2, z: -D / 2 + 1.2 };
+        break;
+      }
+      case 'hospital': {
+        place(Prefabs.counter(4, '#eceff1'), 0, D / 2 - 4);
+        for (let i = 0; i < 6; i++) place(Prefabs.hospitalBed(), -W / 2 + 2 + (i % 3) * 3.2, -D / 2 + 2 + Math.floor(i / 3) * 4.5, 0);
+        it.npcSpots.push({ x: 0, z: D / 2 - 5, role: 'medic', yaw: 0, fixed: true, name: 'Nurse' }, { x: 3, z: 0, role: 'medic' }, { x: -W / 2 + 2, z: -D / 2 + 1.9, role: 'civilian', lie: true });
+        it.uses.push({ x: 0, z: D / 2 - 2.8, kind: 'heal', label: 'Get treated ($100, full health)' });
+        break;
+      }
+      case 'gym': {
+        for (let i = 0; i < 3; i++) place(Prefabs.weights(), -W / 2 + 2.5 + i * 2.6, -D / 2 + 1.8);
+        for (let i = 0; i < 3; i++) place(Prefabs.treadmill(), W / 2 - 1.5 - i * 1.4, -D / 2 + 1.6);
+        // sparring ring (visual)
+        const ring = new THREE.Group();
+        const mt = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 5), mat('#1565c0')); mt.position.y = 0.25; ring.add(mt);
+        for (const [x, z] of [[-2.4, -2.4], [2.4, -2.4], [2.4, 2.4], [-2.4, 2.4]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.6), mat('#eeeeee')); p.position.set(x, 1.1, z); ring.add(p); }
+        ring.position.set(-2, 0, 2.5); g.add(ring);
+        it.colliders.push({ x: -2, z: 2.5, hx: 2.5, hz: 2.5, h: 0.5, walk: true });
+        it.npcSpots.push({ x: 3, z: 2, role: 'athlete', name: 'Coach' }, { x: -W / 2 + 2.5, z: -D / 2 + 2.4, role: 'athlete' });
+        break;
+      }
+      case 'garage': {
+        place(Prefabs.carLift(), -2, -D / 2 + 3);
+        for (let i = 0; i < 4; i++) place(Prefabs.crate(1, '#8d6e63'), W / 2 - 1.2, -D / 2 + 1.2 + i * 1.3);
+        place(Prefabs.counter(3, '#455a64'), 3, D / 2 - 3);
+        it.npcSpots.push({ x: -2, z: -D / 2 + 4.5, role: 'worker', name: 'Mechanic' });
+        it.uses.push({ x: 3, z: D / 2 - 2, kind: 'repair', label: 'Repair & respray your last car ($150)' });
+        break;
+      }
+      case 'office': {
+        for (let i = 0; i < 8; i++) place(Prefabs.desk(), -W / 2 + 3 + (i % 4) * 3.8, -D / 2 + 3 + Math.floor(i / 4) * 4, 0);
+        place(Prefabs.plant(), W / 2 - 1, D / 2 - 1); place(Prefabs.sofa('#455a64'), -W / 2 + 2, D / 2 - 1.5, Math.PI);
+        it.npcSpots.push({ x: -W / 2 + 3, z: -D / 2 + 3.6, role: 'civilian', sit: true }, { x: 2, z: 1, role: 'civilian' });
+        break;
+      }
+      case 'warehouse': {
+        for (let i = 0; i < 18; i++) { const x = -W / 2 + 2 + (i % 6) * 3.8, z = -D / 2 + 2 + Math.floor(i / 6) * 4; if (rnd() < 0.8) place(Prefabs.crate(1.4 + rnd() * 0.6, ['#a1887f', '#8d6e63', '#6d4c41'][i % 3]), x, z); }
+        it.npcSpots.push({ x: 2, z: 3, role: 'worker' }, { x: -4, z: 4, role: 'gang' });
+        break;
+      }
+      case 'dome': {
+        // wrestling ring in the middle with stands around
+        const ring = this.game.activities?.buildRing ? this.game.activities.buildRing() : null;
+        if (ring) g.add(ring);
+        for (let i = 0; i < 4; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(i % 2 ? 3 : W - 6, 2 + (i % 2), i % 2 ? D - 6 : 3), mat('#3949ab')); st.position.set(i === 1 ? W / 2 - 2.5 : i === 3 ? -W / 2 + 2.5 : 0, 1, i === 0 ? -D / 2 + 2.5 : i === 2 ? D / 2 - 4 : 0); if (i === 2) st.visible = false; g.add(st); if (i !== 2) it.colliders.push({ x: st.position.x, z: st.position.z, hx: st.geometry.parameters.width / 2, hz: st.geometry.parameters.depth / 2, h: 2.2 }); }
+        it.colliders.push({ x: 0, z: 0, hx: 3.6, hz: 3.6, h: 1.2, walk: true, ring: true });
+        it.uses.push({ x: 0, z: 5.5, kind: 'wrestling', label: 'Start a wrestling match' });
+        it.npcSpots.push({ x: -8, z: -8, role: 'athlete', name: 'Promoter' });
+        break;
+      }
+      default: break;
+    }
+    // register colliders (world coords)
+    it.worldColliders = it.colliders.map((c) => this.game.world.collision.add({ kind: 'interior', x: o.x + c.x, z: o.z + c.z, hx: c.hx, hz: c.hz, rot: c.rot || 0, y0: -1, y1: c.h, walk: !!c.walk, noCamera: false }));
+    it.floorAt = () => 0;
+    return it;
+  }
+
+  // ------------------------------------------------------------------ enter / exit
+  async enter(bid) {
+    const g = this.game;
+    const it = this.get(bid);
+    await this.fadeTo(1);
+    g.audio.door(g.player.pos);
+    if (this.current) this.current.group.visible = false;
+    this.current = it;
+    it.group.visible = true;
+    g.world.setOutdoorVisible(false);
+    g.engine.scene.fog.density = 0.004;
+    g.engine.scene.background = new THREE.Color('#0a0a0f');
+    g.world.env.sun.castShadow = false;
+    g.world.env.hemi.intensity = 0.45;
+    const o = it.origin;
+    g.player.interior = it;
+    g.player.teleport(o.x + it.entry.x, 0, o.z + it.entry.z, it.entry.yaw);
+    g.cam.yaw = it.entry.yaw + Math.PI; g.cam.pitch = -0.1;
+    g.npcs?.spawnInterior?.(it);
+    g.police?.onEnterInterior?.(it);
+    for (const s of g.systems) s.onEnterInterior?.(it);
+    this.fadeTo(0);
+  }
+  async exit() {
+    const g = this.game;
+    const it = this.current;
+    if (!it) return;
+    await this.fadeTo(1);
+    g.audio.door(g.player.pos);
+    it.group.visible = false;
+    this.current = null;
+    g.player.interior = null;
+    g.world.setOutdoorVisible(true);
+    g.engine.scene.fog.density = 0.0009;
+    g.engine.scene.background = null;
+    g.world.env.sun.castShadow = g.engine.quality !== 'low';
+    const b = this.building(it.bid);
+    const d = b.door;
+    const out = 1.8;
+    const x = d.x + Math.sin(d.rot) * out, z = d.z + Math.cos(d.rot) * out;
+    g.player.teleport(x, null, z, d.rot);
+    g.cam.yaw = d.rot + Math.PI;
+    g.npcs?.despawnInterior?.(it);
+    for (const s of g.systems) s.onExitInterior?.(it);
+    this.fadeTo(0);
+  }
+  fadeTo(v) { this.fade.style.opacity = String(v); return new Promise((r) => setTimeout(r, 260)); }
+
+  /** Interaction candidates for the InteractionManager. */
+  interactions(out, pos) {
+    const g = this.game;
+    if (this.current) {
+      const it = this.current, o = it.origin;
+      const lx = pos.x - o.x, lz = pos.z - o.z;
+      if (Math.hypot(lx - it.exit.x, lz - it.exit.z) < 1.8) out.push({ label: 'Exit', key: 'interact', priority: 5, action: () => this.exit() });
+      for (const u of it.uses) if (Math.hypot(lx - u.x, lz - u.z) < 1.5) out.push({ label: u.label, key: 'interact', priority: 4, action: () => g.onUse?.(u, it) });
+      for (const s of it.seats) if (Math.hypot(lx - s.x, lz - s.z) < 1.2 && !g.seated) out.push({ label: s.kind === 'bed' ? 'Lie down' : 'Sit', key: 'interact', priority: 2, action: () => g.sitOn?.({ x: o.x + s.x, z: o.z + s.z, y: s.y, rot: s.rot, kind: s.kind }) });
+      return;
+    }
+    if (g.vehicles?.current) return;
+    const d = this.nearestDoor(pos.x, pos.z, 2.8);
+    if (d) {
+      const b = this.building(d.id);
+      const type = this.typeOf(d.id);
+      const name = b.special === 'safehouse' ? 'your safehouse' : (NAMES[type] || 'building').toLowerCase();
+      out.push({ label: `Enter ${name}`, key: 'interact', priority: 3, action: () => this.enter(d.id) });
+    }
+  }
+}

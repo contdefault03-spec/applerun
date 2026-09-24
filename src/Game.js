@@ -13,6 +13,9 @@ import { Showroom } from './ui/Showroom.js';
 import { Network } from './net/Network.js';
 import { LocalBackend } from './net/LocalBackend.js';
 import { AIClient } from './npc/AIClient.js';
+import { MultiplayerManager } from './net/MultiplayerManager.js';
+import { InteriorManager } from './interiors/InteriorManager.js';
+import { Interaction } from './systems/Interaction.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
 import { newProfile } from '../shared/economy.js';
 
@@ -52,6 +55,9 @@ export class Game {
     progress(0.65, 'Building Bayview City…');
     await this.world.build((msg) => progress(null, msg));
     this.hud = new HUD(this);
+    this.mp = this.addSystem(new MultiplayerManager(this));
+    this.interiors = this.addSystem(new InteriorManager(this));
+    this.interaction = this.addSystem(new Interaction(this));
     this.audio.addSample('ajan', this.assets.audio.ajan);
     progress(0.95, 'Connecting to game server…');
     await this.net.connect();
@@ -79,6 +85,9 @@ export class Game {
       else if (this.hud.mapEl) return;
       else if (b('chat')) { this.suppressPause = true; this.hud.openChat((t) => this.sendChat(t)); }
       else if (b('camera')) this.cam.toggleMode();
+      else if (b('emote')) this.emote();
+      else if (b('phone')) this.ui.showPhone?.();
+      else if (b('inventory')) this.ui.showInventory?.();
     });
   }
 
@@ -200,6 +209,69 @@ export class Game {
     if (this.net.connected && this.net.room) this.net.send('chat', { text });
     else this.hud.chatMessage(this.settings.get('player.name'), text);
   }
+  emote() {
+    if (!this.player || this.player.mode !== 'foot' || this.vehicles?.current) return;
+    const d = this.avatar.char.def;
+    const name = d.gorilla ? 'chestBeat' : d.idleStyle === 'flex' ? 'flex' : d.idleStyle === 'silly' ? 'dance' : d.idleStyle === 'bored' ? 'taunt' : 'celebrate';
+    this.avatar.anim.play(name);
+    this.net.send('fx', { kind: 'anim', a: { name } });
+  }
+
+  // ------------------------------------------------------------------ sitting / furniture
+  sitOn(seat) {
+    if (this.seated) return;
+    this.seated = seat;
+    this.player.mode = 'seated';
+    this.player.pos.set(seat.x, seat.y - 0.05, seat.z);
+    this.avatar.yaw = seat.rot;
+    this.avatar.anim.setLoop(seat.kind === 'bed' ? 'lie' : 'sit');
+    if (seat.kind === 'bed') { this.player.pos.y = seat.y + 0.05; }
+  }
+  standUp() {
+    const s = this.seated;
+    if (!s) return;
+    this.seated = null;
+    this.avatar.anim.setLoop(null);
+    this.player.mode = 'foot';
+    this.player.pos.set(s.x + Math.sin(s.rot) * 0.8, 0, s.z + Math.cos(s.rot) * 0.8);
+    if (!this.player.interior) this.player.pos.y = this.world.collision.groundAt(this.player.pos.x, this.player.pos.z);
+  }
+
+  async onUse(u, it) {
+    const r = (msg, kind = 'good') => this.ui.notify(msg, kind);
+    switch (u.kind) {
+      case 'heal': {
+        if (this.player.health >= 100) return r('You are already healthy.', 'info');
+        if (this.profile.money < 100) return r('Treatment costs $100.', 'bad');
+        const res = await this.net.request('reward', { kind: 'hospital' });
+        if (res.profile) this.setProfile(res.profile);
+        this.setHealth(100); r('Patched up. Good as new.');
+        break;
+      }
+      case 'snack': case 'fridge': {
+        this.setHealth(Math.min(100, this.player.health + 25));
+        this.avatar.anim.play('interact');
+        r(u.kind === 'fridge' ? 'You raid the fridge. Delicious. (+25 health)' : 'Tasty! (+25 health)');
+        if (it?.residential && !it.owned) this.police?.reportCrime?.('trespass', 1);
+        break;
+      }
+      case 'save': this.setHealth(100); this.world.env.setTime((this.world.env.time + 8) % 24); r('You slept 8 hours. Progress saved, health restored.'); break;
+      case 'workout': this.avatar.anim.play('flex'); this.player.stamina = 100; r('Feel the burn! Stamina maxed.'); break;
+      case 'tv': u.target && (u.target.material.emissiveIntensity = u.target.material.emissiveIntensity > 0.1 ? 0 : 0.6); break;
+      case 'light': for (const L of it.lights) L.visible = !L.visible; break;
+      case 'computer': r(['You check the Bayview news: "Gorilla in tech fleece spotted downtown."', 'You scroll memes for 10 minutes.', 'Stock tip: invest in umbrella hats.'][Math.floor(Math.random() * 3)], 'info'); break;
+      case 'rob': {
+        this.avatar.anim.play('interact');
+        const res = await this.net.request('reward', { kind: 'robbery' });
+        if (res.ok) { this.setProfile(res.profile); r(`You grabbed $${res.amount} from the register!`); } else r(res.error || 'Nothing to take.', 'bad');
+        this.police?.reportCrime?.('robbery', 2);
+        break;
+      }
+      default: this.handleUse?.(u, it); break;
+    }
+  }
+  setHealth(h) { this.player.health = h; }
+
   setWaypoint(w) { this.waypoint = w; if (w) this.ui.notify('Waypoint set', 'info'); }
 
   // ------------------------------------------------------------------ frame
@@ -222,10 +294,14 @@ export class Game {
       if (playing && this.input.locked) this.cam.look(dt);
       for (const s of this.systems) s.preUpdate?.(dt, playing);
       const ctl = this.systems.find((s) => s.controlsPlayer?.());
-      if (!ctl) {
+      if (this.seated) {
+        this.avatar.update(dt, { speed: 0 });
+        this.cam.updateOnFoot(dt, this.avatar, false, false);
+      } else if (!ctl) {
         const aiming = playing && this.input.mouse.right && (this.weapons?.canAim() ?? false);
         this.player.update(dt, this.cam, { aiming, allowMove: playing });
         this.avatar.update(dt, this.player.animState(this.cam));
+        this.cam.interior = this.player.interior;
         this.cam.updateOnFoot(dt, this.avatar, aiming, this.player.crouch);
       }
       for (const s of this.systems) s.update?.(dt, playing);
@@ -256,7 +332,7 @@ export class Game {
     return {
       health: p.health, armor: p.armor, stamina: p.stamina, money: this.profile.money,
       clock: this.world.env.clock(), name: this.settings.get('player.name'),
-      room: this.net.room ? `ROOM ${this.net.room.code} · ${this.net.room.players ?? ''}` : this.net.connected ? 'ONLINE · not in a room' : 'SOLO',
+      room: this.net.room ? `ROOM ${this.net.room.code} · ${this.mp.remotes.size + 1} player${this.mp.remotes.size ? 's' : ''}` : this.net.connected ? 'ONLINE · not in a room' : 'SOLO',
       wanted: this.police?.level || 0, wantedFlash: this.police?.seen,
       zone: this.player.interior ? this.player.interior.name : districtAt(p.pos.x, p.pos.z).name,
       x: p.pos.x, z: p.pos.z, heading: this.avatar.yaw + Math.PI, camYaw: this.cam.yaw,

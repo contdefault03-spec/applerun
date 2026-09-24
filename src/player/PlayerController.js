@@ -77,12 +77,14 @@ export class PlayerController {
     const p = this.pos;
     p.x += this.vel.x * dt; p.z += this.vel.z * dt; p.y += this.vel.y * dt;
     // world bounds
-    p.x = THREE.MathUtils.clamp(p.x, WORLD.minX + 2, WORLD.maxX - 2);
-    p.z = THREE.MathUtils.clamp(p.z, WORLD.minZ + 2, WORLD.maxZ - 2);
+    if (!this.interior) {
+      p.x = THREE.MathUtils.clamp(p.x, WORLD.minX + 2, WORLD.maxX - 2);
+      p.z = THREE.MathUtils.clamp(p.z, WORLD.minZ + 2, WORLD.maxZ - 2);
+    }
     // collisions
     const res = col.resolve(p, this.radius, this.avatar.char.height * (this.crouch ? 0.65 : 1), 0.5, this.ignoreCollider);
     let ground = res.ground;
-    if (this.interior) ground = Math.max(ground === -Infinity ? -1e9 : ground, this.interior.floorAt(p.x, p.z));
+    if (this.interior) ground = Math.max(ground, this.interior.floorAt(p.x, p.z));
     // water
     const seaFloor = heightAt(p.x, p.z);
     this.swimming = !this.interior && seaFloor < WATER_LEVEL - 1.25 && p.y < WATER_LEVEL - 0.6 && ground < WATER_LEVEL - 1;
