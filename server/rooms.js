@@ -271,6 +271,17 @@ export class RoomManager {
       case 'shoot': return this.onShoot(c, m);
       case 'melee': return this.onMelee(c, m);
       case 'vehExit': return this.vehExit(c);
+      case 'ram': {
+        // vehicle vs player: attacker must be driving and close to the victim
+        const v = room.vehicles.get(c.state.v);
+        const target = room.clients.get(m.target);
+        if (!v || v.driver !== c.id || !target || target.dead || !this.pvpAllowed(c, target)) return;
+        if (Math.hypot(target.state.x - v.s[0], target.state.z - v.s[2]) > 7) return;
+        const sp = Math.max(0, Math.min(70, num(m.speed)));
+        if (sp < 4) return;
+        this.applyDamage(target, sp * 3, c, 'vehicle', false, { knock: true });
+        return;
+      }
       case 'vehHit': {
         const v = room.vehicles.get(m.id);
         if (v) { v.dmg = Math.min(100, (v.dmg | 0) + Math.max(0, Math.min(40, num(m.d)))); }

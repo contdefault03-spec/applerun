@@ -16,6 +16,11 @@ import { AIClient } from './npc/AIClient.js';
 import { MultiplayerManager } from './net/MultiplayerManager.js';
 import { InteriorManager } from './interiors/InteriorManager.js';
 import { Interaction } from './systems/Interaction.js';
+import { Effects } from './fx/Effects.js';
+import { VehicleManager } from './vehicles/VehicleManager.js';
+import { Traffic } from './vehicles/Traffic.js';
+import { NPCManager } from './npc/NPCManager.js';
+import { Dialogue } from './npc/Dialogue.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
 import { newProfile } from '../shared/economy.js';
 
@@ -57,6 +62,14 @@ export class Game {
     this.hud = new HUD(this);
     this.mp = this.addSystem(new MultiplayerManager(this));
     this.interiors = this.addSystem(new InteriorManager(this));
+    this.fx = new Effects(this.engine.scene);
+    this.addSystem({ update: (dt) => this.fx.update(dt) });
+    this.vehicles = this.addSystem(new VehicleManager(this));
+    this.traffic = this.addSystem(new Traffic(this));
+    this.npcs = this.addSystem(new NPCManager(this));
+    this.dialogue = new Dialogue(this);
+    progress(0.9, 'Dressing up the citizens of Bayview…');
+    await this.npcs.prebuild();
     this.interaction = this.addSystem(new Interaction(this));
     this.audio.addSample('ajan', this.assets.audio.ajan);
     progress(0.95, 'Connecting to game server…');
@@ -271,6 +284,23 @@ export class Game {
     }
   }
   setHealth(h) { this.player.health = h; }
+  remember(npc, fact) { this.dialogue?.remember(npc, fact); }
+  onFx(kind, r, a) {
+    if (kind === 'horn') this.audio.horn(r.avatar.position);
+    else this.handleFx?.(kind, r, a);
+  }
+  damageSelf(amount, cause = 'world') {
+    if (!this.player || this.player.mode === 'dead') return;
+    if (this.net.connected && this.net.room) this.net.send('selfDamage', { amount, cause });
+    else this.applyLocalDamage(amount, cause);
+  }
+  applyLocalDamage(amount, cause) {
+    const p = this.player;
+    if (p.armor > 0) { const a = Math.min(p.armor, amount * 0.5); p.armor -= a; amount -= a; }
+    p.health = Math.max(0, p.health - amount);
+    this.hud.hitFlash(Math.min(1, amount / 40));
+    if (p.health <= 0) this.onLocalDeath?.(cause);
+  }
 
   setWaypoint(w) { this.waypoint = w; if (w) this.ui.notify('Waypoint set', 'info'); }
 
