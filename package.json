@@ -1,0 +1,25 @@
+{
+  "name": "bayview-city",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:server": "node --watch server/index.js",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server/index.js",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "three": "^0.183.0",
+    "ws": "^8.18.0"
+  },
+  "optionalDependencies": {
+    "firebase-admin": "^13.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0",
+    "playwright-core": "^1.55.0"
+  }
+}

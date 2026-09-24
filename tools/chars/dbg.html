@@ -1,0 +1,17 @@
+<!doctype html><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const c = f.create('dex'); const rig=c.rig;
+const out={};
+for (const n of ['upperArmL','forearmL','thighL','upperArmR']) out[n]={restDir:rig.restDir[n].toArray().map(v=>+v.toFixed(2)), parent: rig.rest[n].parentStd, restW: rig.rest[n].world.toArray().map(v=>+v.toFixed(2))};
+// apply aim down on upperArmL, measure resulting direction
+const d={}; d.upperArmL = rig.aim('upperArmL', new THREE.Vector3(0.1,-1,0));
+rig.apply(d); c.root.updateMatrixWorld(true);
+const a=rig.modelPos(rig.bones.upperArmL), b=rig.modelPos(rig.bones.forearmL);
+out.result=b.sub(a).normalize().toArray().map(v=>+v.toFixed(2));
+out.hier=[]; let o=rig.bones.upperArmL; while(o){out.hier.push(o.name+':'+o.type); o=o.parent;}
+window.__o=out;
+</script>

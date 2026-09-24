@@ -1,0 +1,9 @@
+<!doctype html><script type="module">
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const c=f.create('masked'); const g=c.mesh.geometry; const pm=g.attributes.printMask;
+let n=0; for(let i=0;i<pm.count;i++) n+=pm.getX(i);
+window.__o={n, dbg:f._dbg};
+</script>

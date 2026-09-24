@@ -1,0 +1,23 @@
+<!doctype html><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+import { Animator } from '/src/characters/Animator.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const o={};
+for (const id of ['masked','dex']) {
+const c = f.create(id); const rig=c.rig; const an=new Animator(c); const m=c.mesh;
+c.root.updateMatrixWorld(true);
+const pos=m.geometry.attributes.position; let top=0,ty=-1e9; for(let i=0;i<pos.count;i++){ if(pos.getY(i)>ty){ty=pos.getY(i);top=i;} }
+const sk=()=>m.getVertexPosition(top,new THREE.Vector3()).applyMatrix4(m.matrixWorld).toArray().map(v=>+v.toFixed(2));
+const a=sk(); rig.apply({}); c.root.updateMatrixWorld(true); const b=sk();
+const d={head: new THREE.Quaternion()}; rig.apply(d); c.root.updateMatrixWorld(true); const e=sk();
+an.update(0.016,{}); c.root.updateMatrixWorld(true); const g=sk();
+// which bones influence top vertex
+const si=m.geometry.attributes.skinIndex, sw=m.geometry.attributes.skinWeight;
+const inf=[0,1,2,3].map(k=>m.skeleton.bones[si.getComponent(top,k)].name+':'+sw.getComponent(top,k).toFixed(2));
+o[id]={a,b,e,g,inf};
+}
+window.__o=o;
+</script>

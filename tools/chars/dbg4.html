@@ -1,0 +1,14 @@
+<!doctype html><script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const g = await new GLTFLoader().loadAsync('/assets/characters/humans.glb');
+let m; g.scene.traverse(o=>{ if(o.isSkinnedMesh && !m) m=o; });
+g.scene.updateMatrixWorld(true);
+const si=m.geometry.attributes.skinIndex, sw=m.geometry.attributes.skinWeight, pos=m.geometry.attributes.position;
+const cnt={}; const v=new THREE.Vector3();
+for(let i=0;i<si.count;i++){ let b=0,bw=-1; for(let k=0;k<4;k++){ if(sw.getComponent(i,k)>bw){bw=sw.getComponent(i,k); b=si.getComponent(i,k);} }
+ const n=m.skeleton.bones[b].name; v.fromBufferAttribute(pos,i).applyMatrix4(m.matrixWorld);
+ (cnt[n] ??= {n:0,x:0,y:0}); cnt[n].n++; cnt[n].x+=v.x; cnt[n].y+=v.y; }
+const out=Object.entries(cnt).filter(([k,c])=>c.n>100).map(([k,c])=>k+':'+c.n+' @'+(c.x/c.n).toFixed(2)+','+(c.y/c.n).toFixed(2));
+window.__o={name:m.name, parentName:m.parent.name, out, meshScale:m.scale.toArray(), meshPos: m.position.toArray()};
+</script>

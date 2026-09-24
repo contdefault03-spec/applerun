@@ -1,0 +1,6 @@
+<!doctype html><script type="module">
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const g = await new GLTFLoader().loadAsync('/assets/characters/humans.glb');
+const out=[]; g.scene.traverse(o=>{ if(/spine|upper_arm|Rig|hand/.test(o.name) && !/f_|palm/.test(o.name)) out.push(o.name+'<'+o.type+'>'); });
+window.__n=out;
+</script>

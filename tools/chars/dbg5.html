@@ -1,0 +1,9 @@
+<!doctype html><script type="module">
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const o={};
+for(const id of ['dex','masked','lucky']){ f.template(id); const h=f._lastHead; o[id]={c:h.c.toArray().map(v=>+v.toFixed(3)),w:+h.w.toFixed(3),h:+h.h.toFixed(3),d:+h.d.toFixed(3),front:+h.front.toFixed(3),eyeY:+h.eyeY.toFixed(3),J:f._J}; }
+window.__o=o;
+</script>

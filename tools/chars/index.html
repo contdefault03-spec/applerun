@@ -1,0 +1,26 @@
+<!doctype html><html><body style="margin:0;background:#789"><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+import { Animator } from '/src/characters/Animator.js';
+import { PLAYABLE } from '/src/characters/defs.js';
+const q = new URLSearchParams(location.search);
+const r = new THREE.WebGLRenderer({antialias:true}); r.setSize(innerWidth,innerHeight); document.body.appendChild(r.domElement);
+r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping;
+const s = new THREE.Scene(); s.background = new THREE.Color(0x8fa3b8);
+s.add(new THREE.HemisphereLight(0xffffff,0x556655,1.6)); const d=new THREE.DirectionalLight(0xffffff,2.2); d.position.set(3,6,5); s.add(d);
+const g=new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.MeshStandardMaterial({color:0x667766})); g.rotation.x=-Math.PI/2; s.add(g);
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const ids = (q.get('ids')||PLAYABLE.map(p=>p.id).join(',')).split(',');
+const state = JSON.parse(q.get('state')||'{}'); const act=q.get('act'); const loop=q.get('loop');
+const list=[]; const t0=performance.now();
+ids.forEach((id,i)=>{ const c=f.create(id); c.root.position.x=(i-(ids.length-1)/2)*1.3; c.root.rotation.y=+(q.get('rot')||0); s.add(c.root); const a=new Animator(c); list.push(a); if(loop) a.setLoop(loop); });
+window.__build = performance.now()-t0;
+const cam = new THREE.PerspectiveCamera(35,innerWidth/innerHeight,0.05,100);
+const zoom=+(q.get('zoom')||1); const cy=+(q.get("camy")||1.1); cam.position.set(0,cy,9/zoom); cam.lookAt(0,cy-0.15,0);
+if(q.get('cam')==='side'){cam.position.set(9/zoom,1.1,0);cam.lookAt(0,0.95,0);}
+let t=+(q.get('t')||0.5); const steps=Math.ceil(t/0.016);
+if(q.get("noanim")){ list.forEach(a=>a.rig.apply({})); } else for(let k=0;k<steps;k++){ if(act && k===Math.floor(steps*(+q.get('at')||0.3))) list.forEach(a=>a.play(act)); list.forEach(a=>a.update(0.016,state)); }
+if(q.get("bones")) list.forEach(a=>{const h=new THREE.SkeletonHelper(a.c.root); h.material.depthTest=false; s.add(h);}); r.render(s,cam); window.__ok=true;
+</script></body></html>

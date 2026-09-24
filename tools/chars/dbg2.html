@@ -1,0 +1,15 @@
+<!doctype html><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+import { Animator } from '/src/characters/Animator.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const c = f.create('dex'); const rig=c.rig; const an=new Animator(c);
+for(let i=0;i<30;i++) an.update(0.016,{});
+c.root.updateMatrixWorld(true);
+const out={};
+for(const [a,b] of [['upperArmL','forearmL'],['forearmL','handL'],['upperArmR','forearmR'],['thighL','shinL']]){ out[a]=rig.modelPos(rig.bones[b]).sub(rig.modelPos(rig.bones[a])).normalize().toArray().map(v=>+v.toFixed(2)); }
+out.q=Object.fromEntries(Object.entries(an.base.q).map(([k,v])=>[k,v.toArray().map(x=>+x.toFixed(2))]));
+window.__o=out;
+</script>

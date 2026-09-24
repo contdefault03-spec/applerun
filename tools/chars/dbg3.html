@@ -1,0 +1,25 @@
+<!doctype html><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const c = f.create('dex'); const rig=c.rig; const m=c.mesh;
+const out={};
+out.same = Object.fromEntries(Object.entries(rig.bones).map(([k,b])=>[k, m.skeleton.bones.includes(b)]));
+out.nb = m.skeleton.bones.length;
+const names = m.skeleton.bones.map(b=>b?.name); out.undef = m.skeleton.bones.map((b,i)=>b?null:i).filter(x=>x!==null); window.__o=out; out.dups = names.filter((n,i)=>names.indexOf(n)!==i);
+out.bindMode=m.bindMode;
+// find vertex most weighted to upper arm L
+const idx = m.skeleton.bones.indexOf(rig.bones.upperArmL);
+const si=m.geometry.attributes.skinIndex, sw=m.geometry.attributes.skinWeight;
+let vi=-1; for(let i=0;i<si.count;i++){ if(si.getX(i)===idx && sw.getX(i)>0.9){vi=i;break;} }
+out.vi=vi; out.idx=idx;
+c.root.updateMatrixWorld(true);
+const p0 = m.getVertexPosition(vi, new THREE.Vector3()).applyMatrix4(m.matrixWorld);
+const d={}; d.upperArmL = rig.aim('upperArmL', new THREE.Vector3(0,-1,0)); rig.apply(d); c.root.updateMatrixWorld(true);
+const p1 = m.getVertexPosition(vi, new THREE.Vector3()).applyMatrix4(m.matrixWorld);
+const sh = new THREE.Vector3().setFromMatrixPosition(rig.bones.upperArmL.matrixWorld);
+out.p0=p0.toArray().map(v=>+v.toFixed(3)); out.p1=p1.toArray().map(v=>+v.toFixed(3)); out.sh=sh.toArray().map(v=>+v.toFixed(3));
+window.__o=out;
+</script>

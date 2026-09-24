@@ -1,0 +1,269 @@
+import * as THREE from 'three';
+import { Engine } from './core/Engine.js';
+import { Input } from './core/Input.js';
+import { AudioManager } from './core/AudioManager.js';
+import { CharacterFactory } from './characters/CharacterFactory.js';
+import { Avatar } from './characters/Avatar.js';
+import { World } from './world/World.js';
+import { PlayerController } from './player/PlayerController.js';
+import { CameraController } from './player/CameraController.js';
+import { UIManager } from './ui/UIManager.js';
+import { HUD } from './ui/HUD.js';
+import { Showroom } from './ui/Showroom.js';
+import { Network } from './net/Network.js';
+import { LocalBackend } from './net/LocalBackend.js';
+import { AIClient } from './npc/AIClient.js';
+import { districtAt, getLayout } from '../shared/map/layout.js';
+import { newProfile } from '../shared/economy.js';
+
+// Top-level orchestrator. Systems register with `addSystem` and receive update(dt).
+export class Game {
+  constructor(assets, settings) {
+    this.assets = assets;
+    this.settings = settings;
+    this.engine = new Engine(document.getElementById('app'), settings);
+    this.input = new Input(this.engine.canvas, settings);
+    this.audio = new AudioManager(settings);
+    this.factory = new CharacterFactory(assets);
+    this.ui = new UIManager(this);
+    this.net = new Network(this);
+    this.local = new LocalBackend(this);
+    this.net.local = this.local;
+    this.ai = new AIClient(this);
+    this.world = new World(this.engine);
+    this.showroom = new Showroom(this.engine, this.factory);
+    this.layout = getLayout();
+    this.mode = 'loading';
+    this.systems = [];
+    this.profile = newProfile();
+    this.waypoint = null;
+    this.player = null;
+    this.cam = null;
+    this.menuT = 0;
+    window.game = this; // handy for debugging / automated tests
+  }
+
+  async init(progress) {
+    progress(0.55, 'Rigging characters…');
+    await tick();
+    this.factory.init();
+    // Pre-build the playable character templates (fast afterwards)
+    for (const id of ['max', 'ajan', 'rize', 'masked', 'lucky', 'dex', 'nova']) { this.factory.template(id); await tick(); }
+    progress(0.65, 'Building Bayview City…');
+    await this.world.build((msg) => progress(null, msg));
+    this.hud = new HUD(this);
+    this.audio.addSample('ajan', this.assets.audio.ajan);
+    progress(0.95, 'Connecting to game server…');
+    await this.net.connect();
+    this.bindNet();
+    this.engine.onUpdate((dt) => this.update(dt));
+    this.bindInput();
+    this.engine.start();
+    progress(1, 'Ready');
+  }
+
+  addSystem(s) { this.systems.push(s); return s; }
+
+  bindInput() {
+    // Clicking the canvas while playing grabs the mouse
+    this.engine.canvas.addEventListener('click', () => { if (this.mode === 'playing' && !this.ui.modalOpen) this.input.lock(); });
+    this.input.on((type, code) => {
+      if (type === 'lock') {
+        if (!code && this.mode === 'playing' && !this.ui.modalOpen && !this.hud.chatInput && !this.hud.mapEl && !this.suppressPause) this.pause();
+        this.suppressPause = false;
+      }
+      if (type !== 'down' || this.mode !== 'playing') return;
+      const b = (a) => this.settings.binding(a) === code;
+      if (this.hud.chatInput) return;
+      if (b('map')) { this.suppressPause = true; this.hud.toggleMap(); }
+      else if (this.hud.mapEl) return;
+      else if (b('chat')) { this.suppressPause = true; this.hud.openChat((t) => this.sendChat(t)); }
+      else if (b('camera')) this.cam.toggleMode();
+    });
+  }
+
+  bindNet() {
+    this.net.on('disconnected', () => { if (this.mode !== 'menu') this.ui.notify('Lost connection to the game server — reconnecting…', 'bad'); });
+    this.net.on('reconnected', () => { this.ui.notify('Reconnected to the game server', 'good'); this.syncProfile(); });
+    this.net.on('chat', (m) => this.hud.chatMessage(m.name, m.text, m.sys));
+    this.net.on('profile', (m) => this.setProfile(m.profile));
+    this.net.on('notice', (m) => this.ui.notify(m.text, m.kind || 'info'));
+  }
+
+  async syncProfile() {
+    const r = await this.net.request('getProfile');
+    if (r.ok) this.setProfile(r.profile);
+  }
+  setProfile(p) {
+    this.profile = p;
+    for (const s of this.systems) s.onProfile?.(p);
+  }
+
+  // ------------------------------------------------------------------ flow
+  setMode(m) {
+    this.mode = m;
+    this.engine.renderOverride = m === 'showroom' ? () => this.showroom.render() : null;
+    this.hud?.show(m === 'playing' || m === 'paused');
+  }
+
+  showMenu() {
+    this.setMode('menu');
+    this.ui.showMainMenu();
+    if (!this.settings.get('player.name')) this.ui.askName(() => this.ui.showMainMenu());
+  }
+
+  async startAudio() { await this.audio.init(); this.audio.startAmbience(); }
+
+  async quickPlay() {
+    if (!this.settings.get('player.name')) return this.ui.askName(() => this.quickPlay());
+    await this.startAudio();
+    if (this.net.connected) {
+      const r = await this.net.request('quickJoin', {});
+      if (r.ok) this.onJoined(r);
+      else this.ui.notify(`Could not join a world: ${r.error}`, 'bad');
+    }
+    this.enterWorld();
+  }
+  async createRoom(opts) {
+    await this.startAudio();
+    const r = await this.net.request('createRoom', opts);
+    if (!r.ok) return this.ui.notify(r.error || 'Could not create room', 'bad');
+    this.onJoined(r);
+    if (r.room.kind === 'world') this.enterWorld();
+    this.ui.notify(`Room created — code ${r.room.code}`, 'good');
+  }
+  async joinRoom(code) {
+    await this.startAudio();
+    const r = await this.net.request('joinRoom', { code });
+    if (!r.ok) return this.ui.notify(r.error || 'Could not join room', 'bad');
+    this.onJoined(r);
+    if (r.room.kind === 'world') this.enterWorld();
+  }
+  onJoined(r) {
+    this.net.room = r.room;
+    this.net.wantRoom = r.room.code;
+    if (r.profile) this.setProfile(r.profile);
+    for (const s of this.systems) s.onJoined?.(r);
+  }
+  async createActivity(mode, size) { this.ui.notify('Activities arrive with the activity system.', 'info'); void mode; void size; }
+  leaveActivity() {}
+
+  enterWorld() {
+    this.ui.clearMenus();
+    if (!this.player) this.spawnPlayer();
+    this.setMode('playing');
+    this.audio.stopMusic();
+    this.input.lock();
+    if (!this.welcomed) { this.welcomed = true; this.hud.bigMessage('BAYVIEW CITY', `Welcome, ${this.settings.get('player.name')}. Press M for the map, P for jobs & activities.`, 5); }
+  }
+
+  spawnPlayer() {
+    const key = this.settings.get('player.character') || 'max';
+    this.avatar = new Avatar(this.factory, key, { name: this.settings.get('player.name'), showTag: false });
+    this.engine.scene.add(this.avatar.group);
+    this.player = new PlayerController(this, this.avatar);
+    this.cam = new CameraController(this.engine.camera, this.input, this.settings, this.world.collision);
+    const sp = this.layout.spawnPoints[Math.floor(Math.random() * this.layout.spawnPoints.length)];
+    this.player.teleport(sp.x + (Math.random() - 0.5) * 4, null, sp.z + (Math.random() - 0.5) * 4, Math.PI / 2);
+    this.cam.yaw = -Math.PI / 2 + Math.PI;
+    for (const s of this.systems) s.onSpawn?.(this.player);
+  }
+
+  onCharacterChanged(key) {
+    if (this.avatar) this.avatar.setCharacter(key);
+    this.net.updateProfile();
+  }
+
+  pause() {
+    if (this.mode !== 'playing') return;
+    this.setMode('paused');
+    this.input.unlock();
+    this.ui.showPause();
+  }
+  resume() {
+    this.ui.clearMenus();
+    this.setMode('playing');
+    this.input.lock();
+  }
+  toMainMenu() {
+    if (this.net.room) { this.net.send('leaveRoom'); this.net.room = null; this.net.wantRoom = null; }
+    for (const s of this.systems) s.onLeave?.();
+    this.input.unlock();
+    this.showMenu();
+  }
+  respawn(reason) {
+    const sp = this.layout.spawnPoints[0];
+    this.player.teleport(sp.x, null, sp.z);
+    void reason;
+  }
+  sendChat(text) {
+    if (this.net.connected && this.net.room) this.net.send('chat', { text });
+    else this.hud.chatMessage(this.settings.get('player.name'), text);
+  }
+  setWaypoint(w) { this.waypoint = w; if (w) this.ui.notify('Waypoint set', 'info'); }
+
+  // ------------------------------------------------------------------ frame
+  update(dt) {
+    if (this.mode === 'showroom') { this.showroom.update(dt); this.input.endFrame(); return; }
+    if (this.mode === 'menu' || this.mode === 'loading') {
+      this.menuT += dt;
+      const c = this.engine.camera;
+      const a = this.menuT * 0.03;
+      const center = new THREE.Vector3(-150, 0, 0);
+      c.position.set(center.x + Math.cos(a) * 320, 140, center.z + Math.sin(a) * 320);
+      c.lookAt(center.x, 20, center.z);
+      this.world.update(dt, center);
+      this.input.endFrame();
+      return;
+    }
+    const playing = this.mode === 'playing';
+    if (playing && this.input.hit('pause') && !this.input.locked) this.pause();
+    if (this.player) {
+      if (playing && this.input.locked) this.cam.look(dt);
+      for (const s of this.systems) s.preUpdate?.(dt, playing);
+      const ctl = this.systems.find((s) => s.controlsPlayer?.());
+      if (!ctl) {
+        const aiming = playing && this.input.mouse.right && (this.weapons?.canAim() ?? false);
+        this.player.update(dt, this.cam, { aiming, allowMove: playing });
+        this.avatar.update(dt, this.player.animState(this.cam));
+        this.cam.updateOnFoot(dt, this.avatar, aiming, this.player.crouch);
+      }
+      for (const s of this.systems) s.update?.(dt, playing);
+      const fwd = new THREE.Vector3(); this.engine.camera.getWorldDirection(fwd);
+      this.audio.setListener(this.engine.camera.position, fwd, this.engine.camera.up);
+      this.world.update(dt, this.player.pos);
+      this.updateAmbience(dt);
+      this.hud.update(dt, this.hudState());
+    }
+    this.input.endFrame();
+  }
+
+  updateAmbience(dt) {
+    if (!this.audio.amb) return;
+    const d = districtAt(this.player.pos.x, this.player.pos.z).id;
+    const city = ['downtown', 'midtown', 'eastside', 'redbrick', 'industrial'].includes(d) ? 1 : 0.35;
+    const [px] = [this.player.pos.x / 1.2 + 500];
+    const ocean = Math.max(0, 1 - Math.max(0, px - 180) / 120);
+    const wind = Math.min(1, Math.max(0, this.player.pos.y - 20) / 60);
+    this.audio.setAmbience({ city: this.player.interior ? 0.1 : city, ocean: this.player.interior ? 0 : ocean, wind, dt });
+  }
+
+  hudState() {
+    const p = this.player;
+    const w = this.weapons?.hud() || {};
+    const blips = [];
+    for (const s of this.systems) s.blips?.(blips);
+    return {
+      health: p.health, armor: p.armor, stamina: p.stamina, money: this.profile.money,
+      clock: this.world.env.clock(), name: this.settings.get('player.name'),
+      room: this.net.room ? `ROOM ${this.net.room.code} · ${this.net.room.players ?? ''}` : this.net.connected ? 'ONLINE · not in a room' : 'SOLO',
+      wanted: this.police?.level || 0, wantedFlash: this.police?.seen,
+      zone: this.player.interior ? this.player.interior.name : districtAt(p.pos.x, p.pos.z).name,
+      x: p.pos.x, z: p.pos.z, heading: this.avatar.yaw + Math.PI, camYaw: this.cam.yaw,
+      blips, waypoint: this.waypoint, inVehicle: !!this.vehicles?.current,
+      vehicle: this.vehicles?.current ? { speed: this.vehicles.current.speed, name: this.vehicles.current.spec.name } : null,
+      talking: this.voice?.transmitting, crosshair: !this.vehicles?.current, ...w,
+    };
+  }
+}
+const tick = () => new Promise((r) => setTimeout(r, 0));

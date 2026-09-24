@@ -1,0 +1,19 @@
+<!doctype html><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+import { Animator } from '/src/characters/Animator.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const o={};
+for (const id of ['masked','dex']) {
+const c = f.create(id); const rig=c.rig; const an=new Animator(c);
+c.root.updateMatrixWorld(true);
+const w=(b)=>new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).toArray().map(v=>+v.toFixed(2));
+const r0={head:w(rig.bones.head), neck:w(rig.bones.neck), chest:w(rig.bones.chest)};
+an.update(0.016,{}); c.root.updateMatrixWorld(true);
+const r1={head:w(rig.bones.head), neck:w(rig.bones.neck), chest:w(rig.bones.chest), dHead: an.base.q.head?.toArray().map(v=>+v.toFixed(2)), restHead: rig.rest.head.world.toArray().map(v=>+v.toFixed(2)), headParent: rig.rest.head.parentStd, neckParent: rig.rest.neck.parentStd, pivot: c.pivot.position.toArray()};
+o[id]={r0,r1};
+}
+window.__o=o;
+</script>

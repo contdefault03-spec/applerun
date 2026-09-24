@@ -1,0 +1,16 @@
+<!doctype html><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/core/Assets.js';
+import { CharacterFactory } from '/src/characters/CharacterFactory.js';
+import { Animator } from '/src/characters/Animator.js';
+const assets = new Assets(); await assets.loadAll();
+const f = new CharacterFactory(assets); f.init();
+const c = f.create('masked'); const rig=c.rig; const an=new Animator(c);
+const hb=rig.bones.head; const acc=hb.children.filter(o=>!o.isBone);
+const w=(o)=>new THREE.Vector3().setFromMatrixPosition(o.matrixWorld).toArray().map(v=>+v.toFixed(2));
+c.root.updateMatrixWorld(true);
+const o={n:acc.length, rest:acc.map(w), bone:w(hb), local: acc.map(a=>a.position.toArray().map(v=>+v.toFixed(2))), childPos: acc.map(a=>a.children.slice(0,1).map(w))};
+for(let i=0;i<30;i++) an.update(0.016,{}); c.root.updateMatrixWorld(true);
+o.anim=acc.map(w); o.boneA=w(hb); o.childPosA=acc.map(a=>a.children.slice(0,1).map(w));
+window.__o=o;
+</script>

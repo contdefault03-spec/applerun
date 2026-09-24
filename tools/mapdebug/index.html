@@ -1,0 +1,17 @@
+<!doctype html><html><body style="margin:0;background:#222"><canvas id=c width=1000 height=1090></canvas><script type="module">
+import { getLayout, toPx, DISTRICTS, PORT_BASIN } from '/shared/map/layout.js';
+const L = getLayout(); const c=document.getElementById('c'); const g=c.getContext('2d');
+const img=new Image(); img.src='/assets/maps/reference.jpg'; await img.decode();
+// left panel of the reference is ~0..995 x 0..1090 of a 2000x1091 image
+g.globalAlpha=0.55; g.drawImage(img,0,0,995,1091,0,0,995,1091); g.globalAlpha=1;
+const P=(x,z)=>toPx(x,z);
+for(const r of L.roads){g.strokeStyle={highway:'#f0f',main:'#ff0',street:'#0ff',mountain:'#f80'}[r.type];g.lineWidth=r.width/1.2;g.globalAlpha=0.6;g.beginPath();r.pts.forEach((p,i)=>{const [x,y]=P(p[0],p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();}
+g.globalAlpha=1;
+for(const n of L.graph.nodes){const[x,y]=P(n.x,n.z);g.fillStyle='red';g.fillRect(x-2,y-2,4,4);}
+for(const b of L.buildings){const cc=Math.cos(b.rot),s=Math.sin(b.rot);g.fillStyle=b.special?'#f00':'#fff';g.beginPath();[[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([a,d],i)=>{const lx=a*b.hx,lz=d*b.hz;const[x,y]=P(b.x+lx*cc+lz*s,b.z-lx*s+lz*cc);i?g.lineTo(x,y):g.moveTo(x,y)});g.fill();const[dx,dy]=P(b.door.x,b.door.z);g.fillStyle='#0f0';g.fillRect(dx-1.5,dy-1.5,3,3);}
+for(const k in L.landmarks){const b=L.landmarks[k];const[x,y]=P(b.x-b.hx,b.z-b.hz);g.strokeStyle='#0f0';g.lineWidth=2;g.strokeRect(x,y,b.hx*2/1.2,b.hz*2/1.2);}
+g.fillStyle='#050';for(const t of L.props.trees){const[x,y]=P(t.x,t.z);g.fillRect(x-1,y-1,2,2);}
+g.fillStyle='#fa0';for(const t of L.props.palms){const[x,y]=P(t.x,t.z);g.fillRect(x-1.5,y-1.5,3,3);}
+g.fillStyle='#00f';for(const t of L.vehicleSpawns){const[x,y]=P(t.x,t.z);g.fillRect(x-1.5,y-1.5,3,3);}
+for(const d of DISTRICTS){g.strokeStyle='rgba(255,255,255,0.5)';g.lineWidth=1;g.beginPath();d.poly.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();g.stroke();}
+</script></body></html>

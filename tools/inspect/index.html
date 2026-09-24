@@ -1,0 +1,19 @@
+<!doctype html><html><body style="margin:0"><script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const r = new THREE.WebGLRenderer({antialias:true}); r.setSize(1280,720); document.body.appendChild(r.domElement);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x8899aa);
+s.add(new THREE.HemisphereLight(0xffffff,0x444444,2)); const d=new THREE.DirectionalLight(0xffffff,2); d.position.set(3,5,4); s.add(d);
+const cam = new THREE.PerspectiveCamera(40,1280/720,0.01,100);
+const which = new URLSearchParams(location.search).get('v')||'front';
+const L = new GLTFLoader();
+const [max, hum] = await Promise.all([L.loadAsync('/assets/characters/max.glb'), L.loadAsync('/assets/characters/humans.glb')]);
+max.scene.scale.setScalar(1.8); max.scene.position.x = -3; s.add(max.scene);
+hum.scene.scale.setScalar(0.52); s.add(hum.scene);
+hum.scene.traverse(o=>{ if(o.isSkinnedMesh){ const h=new THREE.SkeletonHelper(o.skeleton.bones[0].parent); s.add(h);} });
+const out={};
+hum.scene.traverse(o=>{ if(o.isBone && /^(spine|spine\.00[1-6]|upper_arm\.L|forearm\.L|hand\.L|thigh\.L|shin\.L|foot\.L|shoulder\.L|pelvis\.L)$/.test(o.name)){ const q=new THREE.Quaternion(); o.getWorldQuaternion(q); const p=new THREE.Vector3(); o.getWorldPosition(p); const dir=new THREE.Vector3(0,1,0).applyQuaternion(q); (out[o.parent.parent?.parent?.name||'x']??={})[o.name]={p:p.toArray().map(v=>+v.toFixed(3)),dir:dir.toArray().map(v=>+v.toFixed(2))}; }});
+window.__out=out;
+if(which==='side'){cam.position.set(8,1.2,0.01);} else cam.position.set(-1,1.2,7);
+cam.lookAt(-1,0.9,0); r.render(s,cam);
+</script></body></html>
