@@ -31,7 +31,7 @@ export class Traffic {
       const types = n.edges.map((i) => this.graph.edges[i].type);
       if ((types.includes('main') || types.includes('highway')) && !types.includes('mountain')) this.lightNodes.add(n.id);
     }
-    this.spawnable = this.graph.edges.filter((e) => e.len > 25 && e.type !== 'mountain');
+    this.spawnable = this.graph.edges.filter((e) => e.len > 25);
   }
 
   sample(e, s, dir, out) {
@@ -173,7 +173,7 @@ export class Traffic {
 
   nextEdge(c) {
     const node = this.graph.nodes[c.dir > 0 ? c.edge.b : c.edge.a];
-    const options = node.edges.map((i) => this.graph.edges[i]).filter((e) => e !== c.edge && e.type !== 'mountain' || node.edges.length === 1);
+    const options = node.edges.map((i) => this.graph.edges[i]).filter((e) => e !== c.edge || node.edges.length === 1);
     const e = options.length ? options[Math.floor(Math.random() * options.length)] : c.edge;
     const over = c.s - c.edge.len;
     c.dir = e.a === node.id ? 1 : -1;
