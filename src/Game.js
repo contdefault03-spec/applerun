@@ -21,6 +21,13 @@ import { VehicleManager } from './vehicles/VehicleManager.js';
 import { Traffic } from './vehicles/Traffic.js';
 import { NPCManager } from './npc/NPCManager.js';
 import { Dialogue } from './npc/Dialogue.js';
+import { WeaponManager } from './combat/WeaponManager.js';
+import { PoliceManager } from './systems/PoliceManager.js';
+import { Jobs } from './systems/Jobs.js';
+import { Emergency } from './systems/Emergency.js';
+import { Events } from './systems/Events.js';
+import { ActivityManager } from './activities/ActivityManager.js';
+import { VoiceChat } from './net/VoiceChat.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
 import { newProfile } from '../shared/economy.js';
 
@@ -61,19 +68,28 @@ export class Game {
     await this.world.build((msg) => progress(null, msg));
     this.hud = new HUD(this);
     this.mp = this.addSystem(new MultiplayerManager(this));
+    this.activities = this.addSystem(new ActivityManager(this));
     this.interiors = this.addSystem(new InteriorManager(this));
     this.fx = new Effects(this.engine.scene);
     this.addSystem({ update: (dt) => this.fx.update(dt) });
     this.vehicles = this.addSystem(new VehicleManager(this));
     this.traffic = this.addSystem(new Traffic(this));
     this.npcs = this.addSystem(new NPCManager(this));
+    this.weapons = this.addSystem(new WeaponManager(this));
+    this.police = this.addSystem(new PoliceManager(this));
+    this.jobs = this.addSystem(new Jobs(this));
+    this.emergency = this.addSystem(new Emergency(this));
+    this.events = this.addSystem(new Events(this));
     this.dialogue = new Dialogue(this);
     progress(0.9, 'Dressing up the citizens of Bayview…');
     await this.npcs.prebuild();
     this.interaction = this.addSystem(new Interaction(this));
+    this.voice = this.addSystem(new VoiceChat(this));
     this.audio.addSample('ajan', this.assets.audio.ajan);
     progress(0.95, 'Connecting to game server…');
+    this.net.on('welcome', (m) => this.setProfile(m.profile));
     await this.net.connect();
+    if (!this.net.connected) this.setProfile(this.local.profile);
     this.bindNet();
     this.engine.onUpdate((dt) => this.update(dt));
     this.bindInput();
@@ -151,15 +167,17 @@ export class Game {
     const r = await this.net.request('createRoom', opts);
     if (!r.ok) return this.ui.notify(r.error || 'Could not create room', 'bad');
     this.onJoined(r);
-    if (r.room.kind === 'world') this.enterWorld();
+    if (r.room.kind === 'world') this.enterWorld(); else this.activities.enterNet(r);
     this.ui.notify(`Room created — code ${r.room.code}`, 'good');
   }
   async joinRoom(code) {
     await this.startAudio();
+    if (this.inActivity && this.activities.s) await this.activities.leave();
+    this.activities.rememberWorld?.();
     const r = await this.net.request('joinRoom', { code });
     if (!r.ok) return this.ui.notify(r.error || 'Could not join room', 'bad');
     this.onJoined(r);
-    if (r.room.kind === 'world') this.enterWorld();
+    if (r.room.kind === 'world') { this.activities.returnTo = null; this.enterWorld(); } else this.activities.enterNet(r);
   }
   onJoined(r) {
     this.net.room = r.room;
@@ -167,8 +185,13 @@ export class Game {
     if (r.profile) this.setProfile(r.profile);
     for (const s of this.systems) s.onJoined?.(r);
   }
-  async createActivity(mode, size) { this.ui.notify('Activities arrive with the activity system.', 'info'); void mode; void size; }
-  leaveActivity() {}
+  async createActivity(mode, size) {
+    if (!this.settings.get('player.name')) return this.ui.askName(() => this.createActivity(mode, size));
+    if (this.inActivity) await this.activities.leave();
+    if (!this.player) { this.ui.clearMenus(); this.spawnPlayer(); }
+    return this.activities.create(mode, size);
+  }
+  leaveActivity() { return this.activities.leave(); }
 
   enterWorld() {
     this.ui.clearMenus();
@@ -187,12 +210,14 @@ export class Game {
     this.cam = new CameraController(this.engine.camera, this.input, this.settings, this.world.collision);
     const sp = this.layout.spawnPoints[Math.floor(Math.random() * this.layout.spawnPoints.length)];
     this.player.teleport(sp.x + (Math.random() - 0.5) * 4, null, sp.z + (Math.random() - 0.5) * 4, Math.PI / 2);
+    this.weapons.onProfile(this.profile);
+    this.weapons.equip('fists');
     this.cam.yaw = -Math.PI / 2 + Math.PI;
     for (const s of this.systems) s.onSpawn?.(this.player);
   }
 
   onCharacterChanged(key) {
-    if (this.avatar) this.avatar.setCharacter(key);
+    if (this.avatar) { this.avatar.setCharacter(key); this.weapons?.equip(this.weapons.current); }
     this.net.updateProfile();
   }
 
@@ -294,6 +319,13 @@ export class Game {
     if (this.net.connected && this.net.room) this.net.send('selfDamage', { amount, cause });
     else this.applyLocalDamage(amount, cause);
   }
+  onLocalDeath(cause) { this.weapons.localDeath(cause === 'police' ? 'Shot by the police' : cause === 'npc' ? 'Killed in a fight' : `You died (${cause})`); }
+  handleUse(u, it) {
+    switch (u.kind) {
+      case 'gunshop': this.weapons.openShop(); break;
+      default: for (const s of this.systems) if (s.onUse?.(u, it)) return; this.ui.notify('Nothing happens.', 'info');
+    }
+  }
   applyLocalDamage(amount, cause) {
     const p = this.player;
     if (p.armor > 0) { const a = Math.min(p.armor, amount * 0.5); p.armor -= a; amount -= a; }
@@ -356,7 +388,7 @@ export class Game {
 
   hudState() {
     const p = this.player;
-    const w = this.weapons?.hud() || {};
+    const w = this.activities?.blocksWeapons() ? { weaponName: '', slots: [], ammo: null } : this.weapons?.hud() || {};
     const blips = [];
     for (const s of this.systems) s.blips?.(blips);
     return {
@@ -368,7 +400,7 @@ export class Game {
       x: p.pos.x, z: p.pos.z, heading: this.avatar.yaw + Math.PI, camYaw: this.cam.yaw,
       blips, waypoint: this.waypoint, inVehicle: !!this.vehicles?.current,
       vehicle: this.vehicles?.current ? { speed: this.vehicles.current.speed, name: this.vehicles.current.spec.name } : null,
-      talking: this.voice?.transmitting, crosshair: !this.vehicles?.current, ...w,
+      talking: this.voice?.transmitting, crosshair: !this.vehicles?.current && !this.activities?.blocksWeapons(), ...w,
     };
   }
 }

@@ -39,7 +39,13 @@ export class Engine {
       requestAnimationFrame(loop);
       const dt = Math.min(0.05, this.clock.getDelta());
       this.fps += (1 / Math.max(dt, 1e-3) - this.fps) * 0.05;
-      for (const f of this.updaters) f(dt);
+      try {
+        for (const f of this.updaters) f(dt);
+      } catch (e) {
+        // never let one bad frame kill the game loop — log (rate-limited) and keep rendering
+        const now = performance.now();
+        if (!this._lastErr || now - this._lastErr > 2000) { this._lastErr = now; console.error('[frame]', e); }
+      }
       if (this.renderOverride) this.renderOverride();
       else this.renderer.render(this.scene, this.camera);
     };

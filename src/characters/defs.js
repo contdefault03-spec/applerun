@@ -97,6 +97,9 @@ export const NPC_ROLES = {
   athlete: { shirts: ['#e53935', '#1e88e5'], pants: ['#ffffff'], sleeves: 'short', pantsLen: 'short' },
   junkie: { shirts: ['#6b5f4b', '#4c4c3f', '#5d4037'], pants: ['#3e3a33', '#4a4239'], shabby: true },
   resident: { shirts: ['#95a5a6', '#bdc3c7', '#a29bfe', '#fab1a0', '#81ecec'], pants: ['#2d3436', '#636e72'] },
+  teamA: { shirts: ['#1e63d8'], pants: ['#ffffff'], sleeves: 'short', pantsLen: 'short', jersey: true },
+  teamB: { shirts: ['#d8342b'], pants: ['#1a1a1a'], sleeves: 'short', pantsLen: 'short', jersey: true },
+  wrestler: { shirts: ['#6a1b9a', '#ff6f00', '#00897b', '#c62828'], pants: ['#111111', '#ffd600', '#1565c0'], sleeves: 'short', pantsLen: 'short' },
 };
 
 export const SKIN_TONES = ['#f1d2b6', '#e8b996', '#d69e76', '#b97a52', '#8d5a3b', '#6b4127', '#4a2c1a'];

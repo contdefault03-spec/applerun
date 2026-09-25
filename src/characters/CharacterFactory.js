@@ -507,7 +507,7 @@ export function npcDef(key) {
   const R = NPC_ROLES[role] || NPC_ROLES.civilian;
   const r = mulberry32(hashStr(key));
   const pick = (a) => a[Math.floor(r() * a.length)];
-  const female = role !== 'police' || r() < 0.3 ? r() < 0.45 : false;
+  const female = role === 'wrestler' ? r() < 0.25 : role !== 'police' || r() < 0.3 ? r() < 0.45 : false;
   const base = female ? 'woman' : 'man';
   const heavy = r() < 0.25;
   const def = {
@@ -522,7 +522,7 @@ export function npcDef(key) {
     outfit: {
       shirt: pick(R.shirts), pants: pick(R.pants), shoes: pick(['#f0f0f0', '#222222', '#6d4c41', '#1565c0']),
       sleeves: R.sleeves || pick(['short', 'long', 'short']), pantsLen: R.pantsLen || (r() < 0.15 ? 'short' : 'long'),
-      print: role === 'police' ? 'police' : role === 'medic' ? 'medic' : role === 'shopkeeper' ? 'apron' : role === 'worker' ? 'hivis' : role === 'athlete' ? 'jersey' : role === 'junkie' ? 'shabby' : r() < 0.3 ? 'stripes' : null,
+      print: role === 'police' ? 'police' : role === 'medic' ? 'medic' : role === 'shopkeeper' ? 'apron' : role === 'worker' ? 'hivis' : role === 'athlete' || R.jersey ? 'jersey' : role === 'junkie' ? 'shabby' : r() < 0.3 ? 'stripes' : null,
       apron: R.apron, number: 1 + (n % 30), stripes: r() < 0.3 ? '#ffffff' : null,
     },
     hat: R.hat || (r() < 0.12 ? 'cap' : null), hatColor: pick(['#c0392b', '#1e272e', '#27ae60', '#2980b9']),

@@ -1,0 +1,20 @@
+# One-click deploy of the Bayview game server (also serves the built client) on Render.
+services:
+  - type: web
+    name: bayview-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=optional && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: GEMINI_API_KEY
+        sync: false        # set in the Render dashboard — never commit it
+      - key: GEMINI_MODEL
+        value: gemini-flash-lite-latest
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false        # optional: service-account JSON for Firestore persistence
+      - key: ALLOWED_ORIGINS
+        sync: false        # optional: e.g. https://your-site.netlify.app

@@ -98,7 +98,7 @@ export function buildLandmarks() {
     }
     for (const sx of [-1, 1]) for (let t = 0; t < 3; t++) s.add(box(3, 1.5 + t * 2.5, ar.hz * 2 - 2 * at, t % 2 ? seatWhite : M('#c62828'), sx * (ar.hx - at + 1.5 + t * 3), 0.75 + t * 1.25, 0));
     // hoops
-    for (const sx of [-1, 1]) s.add(hoop(sx * 14, 0, sx));
+    for (const sx of [-1, 1]) s.add(hoop(sx * 12.7, 0, sx));
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(18, 3), new THREE.MeshStandardMaterial({ map: signTexture('BAYVIEW ARENA', '#8b1a1a', '#ffffff'), emissive: '#ffffff', emissiveIntensity: 0.15 }));
     sign.position.set(0, 11, -ar.hz - 0.2); sign.rotation.y = Math.PI; s.add(sign);
     g.add(s);
@@ -111,7 +111,7 @@ export function buildLandmarks() {
     s.position.set(c.x, heightAt(c.x, c.z), c.z);
     const court = new THREE.Mesh(new THREE.PlaneGeometry(30, 17), new THREE.MeshStandardMaterial({ map: courtTexture(), roughness: 0.6, color: '#9fb8d8' }));
     court.rotation.x = -Math.PI / 2; court.position.y = 0.06; court.receiveShadow = true; s.add(court);
-    for (const sx of [-1, 1]) s.add(hoop(sx * 14, 0, sx));
+    for (const sx of [-1, 1]) s.add(hoop(sx * 12.7, 0, sx));
     const fence = new THREE.MeshBasicMaterial({ color: '#555', wireframe: true });
     for (const [w, d, x, z] of [[32, 0.1, 0, -9], [32, 0.1, 0, 9], [0.1, 18, -16, 0], [0.1, 18, 16, 0]]) {
       const f = new THREE.Mesh(new THREE.BoxGeometry(w, 3, d, Math.ceil(w), 3, 1), fence); f.position.set(x, 1.5, z); s.add(f);

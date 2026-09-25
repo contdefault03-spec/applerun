@@ -6,6 +6,8 @@ import { WEAPONS, HEADSHOT_MULT } from '../shared/weapons.js';
 import { applyPurchase, applyReward } from '../shared/economy.js';
 import { interiorAt, interiorOrigin } from '../shared/interiors.js';
 import { createActivity } from './activities/index.js';
+import './activities/sports.js';
+import './activities/combat.js';
 
 const TICK = 1000 / 15;
 const VIEW_DIST = 420;
@@ -200,6 +202,7 @@ export class RoomManager {
       case 'reward': {
         const kind = d.kind;
         if (kind === 'arrest') { const r = applyReward(c.profile, 'arrest', { fine: num(d.fine) }); c.dirtyProfile = true; c.wanted = 0; return { ...r, profile: c.profile }; }
+        if (kind === 'tip') { const r = applyReward(c.profile, 'tip'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'hospital') { const r = applyReward(c.profile, 'hospital'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'robbery') {
           const bid = interiorAt(c.state.x, c.state.z);
@@ -209,6 +212,16 @@ export class RoomManager {
           if (now() - (c.robbed[bid] || 0) < 5 * 60000) return { ok: false, error: 'The register is empty — come back later' };
           c.robbed[bid] = now();
           const r = applyReward(c.profile, 'robbery', { amount: 150 + Math.floor(Math.random() * 300) });
+          c.dirtyProfile = true;
+          return { ...r, profile: c.profile };
+        }
+        if (kind === 'paramedic' || kind === 'police' || kind === 'event') {
+          // client-simulated jobs: rate-limited and clamped server-side
+          c.rewardAt ??= {};
+          const gap = kind === 'paramedic' ? 20000 : 30000;
+          if (now() - (c.rewardAt[kind] || 0) < gap) return { ok: false, error: 'Too soon' };
+          c.rewardAt[kind] = now();
+          const r = applyReward(c.profile, kind, { amount: num(d.amount) });
           c.dirtyProfile = true;
           return { ...r, profile: c.profile };
         }
@@ -294,8 +307,16 @@ export class RoomManager {
         this.applyDamage(c, dmg, null, clean(m.cause, 20), false);
         return;
       }
+      case 'revive': {
+        const t = room.clients.get(m.target);
+        if (!t || !t.dead || c.dead || t === c) return;
+        if (Math.hypot(t.state.x - c.state.x, t.state.z - c.state.z) > 3.5) return;
+        t.dead = false; t.hp = 35; t.teleportGrace = now() + 2000;
+        room.broadcast({ t: 'respawn', id: t.id, p: [t.state.x, t.state.y, t.state.z], hp: 35, revived: true, by: c.name });
+        return;
+      }
       case 'respawnReq': {
-        if (c.dead && now() - c.deadAt > RESPAWN_MS - 200) this.respawn(c);
+        if (c.dead && now() - c.deadAt > RESPAWN_MS - 200 && room.activity?.allowRespawn?.(c) !== false) this.respawn(c);
         return;
       }
       case 'wanted': {
@@ -367,7 +388,7 @@ export class RoomManager {
         c.send({ t: 'snap', ts: t, p: ps, v: vs });
       }
       // respawns
-      for (const c of all) if (c.dead && t - c.deadAt > RESPAWN_MS + 15000) this.respawn(c);
+      for (const c of all) if (c.dead && t - c.deadAt > RESPAWN_MS + 15000 && room.activity?.allowRespawn?.(c) !== false) this.respawn(c);
       // remove abandoned dynamic vehicles
       for (const v of room.vehicles.values()) if (v.dyn && !v.driver && !v.passengers.length && t - v.touched > 10 * 60000) { room.vehicles.delete(v.id); room.broadcast({ t: 'vehicleGone', id: v.id }); }
     }

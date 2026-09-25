@@ -1,0 +1,20 @@
+# Netlify hosts the static client. The realtime game server (WebSockets) runs separately
+# (Render / Fly.io / Railway / any VPS) — see README "Deployment".
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Set VITE_SERVER_URL in the Netlify UI to your game server, e.g. wss://bayview-server.onrender.com
+  # Optional TURN relay for voice chat behind strict NATs: VITE_TURN_URL / VITE_TURN_USER / VITE_TURN_PASS
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

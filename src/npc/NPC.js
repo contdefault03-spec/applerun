@@ -69,6 +69,7 @@ export class NPC {
     if (attacker) this.provoke(attacker, 'attacked');
   }
   die(attacker) {
+    this.killedBy = attacker;
     this.state = 'dead';
     this.hp = 0;
     this.deadT = 0;

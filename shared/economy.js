@@ -52,7 +52,10 @@ export function applyReward(p, kind, data = {}) {
     case 'hospital': amount = -Math.min(p.money, 200); break;
     case 'arrest': amount = -Math.min(p.money, Math.max(0, Math.min(LIMITS.wantedFineMax, data.fine | 0))); p.stats.arrests++; break;
     case 'robbery': amount = Math.max(0, Math.min(600, data.amount | 0)); break;
-    case 'police': amount = Math.max(0, Math.min(500, data.amount | 0)); break;
+    case 'police': amount = Math.max(0, Math.min(300, data.amount | 0)); break;
+    case 'paramedic': amount = 120; break;
+    case 'tip': amount = -Math.min(p.money, 5); break;
+    case 'event': amount = Math.max(0, Math.min(200, data.amount | 0)); break;
     default: return { ok: false, error: 'bad reward' };
   }
   p.money = Math.max(0, p.money + amount);

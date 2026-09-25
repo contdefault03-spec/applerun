@@ -16,5 +16,5 @@ const r = await page.evaluate(async (code) => {
 }, js);
 if (r !== undefined) console.log('[result]', JSON.stringify(r).slice(0, 3000));
 await page.waitForTimeout(+wait);
-await page.screenshot({ path: out, timeout: 60000 });
+await page.screenshot({ path: out, timeout: 150000 });
 await browser.close();

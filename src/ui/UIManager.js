@@ -307,6 +307,48 @@ export class UIManager {
     ), { onClose: () => g.resume() });
   }
 
+  // ------------------------------------------------------------ phone (jobs, activities, GPS, passive mode)
+  showPhone() {
+    const g = this.game;
+    const v = g.vehicles?.current;
+    if (v?.isDriver && (v.type === 'taxi' || v.type === 'ambulance')) return; // P is the job key in those vehicles
+    g.suppressPause = true; g.input.unlock();
+    const L = g.layout;
+    const gps = (label, key, lm) => h('button.btn.small', { onclick: () => { const b = lm ? L.landmarks[key] : L.buildings[L.special[key]]; const p = lm ? b : b.door; g.setWaypoint({ x: p.x, z: p.z }); this.closeModal(); g.input.lock(); } }, label);
+    const passive = h('button.btn.small', { onclick: async () => { const r = await g.net.request('setPassive', { on: !g.passive }); if (r.ok) { g.passive = r.passive; this.notify(r.passive ? 'Passive mode ON — players cannot hurt you (and you cannot hurt them).' : 'Passive mode OFF', 'info'); passive.textContent = `Passive mode: ${g.passive ? 'ON' : 'OFF'}`; } else this.notify(r.error || 'Only available online', 'bad'); } }, `Passive mode: ${g.passive ? 'ON' : 'OFF'}`);
+    this.modal('Phone', h('div.col',
+      h('h3', 'Jobs'),
+      h('div.muted', { style: { fontSize: '13px' } }, 'Taxi: get in any taxi (depot marked on the map) and press P. Paramedic: take an ambulance from the hospital and press P. Police duty: sign up at a police station.'),
+      h('div.row', { style: { flexWrap: 'wrap' } }, gps('Taxi depot', 'taxi_depot'), gps('Hospital', 'hospital'), gps('Police station', 'police')),
+      h('h3', 'GPS'),
+      h('div.row', { style: { flexWrap: 'wrap' } }, gps('Gun store (downtown)', 'gunstore1'), gps('Gun store (Eastside)', 'gunstore2'), gps('Safehouse', 'safehouse'), gps('Gym', 'gym'), gps('Garage', 'garage'), gps('Stadium', 'stadium', true), gps('Arena', 'arena', true), gps('Dome', 'dome', true)),
+      h('h3', 'Activities & multiplayer'),
+      h('div.row', { style: { flexWrap: 'wrap' } }, h('button.btn.small.primary', { onclick: () => { this.closeModal(); this.showActivities(); } }, 'Start an activity'), h('button.btn.small', { onclick: () => { this.closeModal(); this.showMultiplayer(); } }, 'Rooms'), passive),
+    ), { onClose: () => g.input.lock() });
+  }
+
+  showInventory() {
+    const g = this.game;
+    g.suppressPause = true; g.input.unlock();
+    const p = g.profile;
+    const W = g.weapons;
+    const players = [...g.mp.remotes.values()];
+    this.modal('Inventory', h('div',
+      h('div.row', { style: { gap: '24px', flexWrap: 'wrap' } },
+        h('div', h('div.muted', 'Cash'), h('div', { style: { fontFamily: 'var(--display)', fontSize: '40px', color: '#7dff9b' } }, `$${p.money.toLocaleString()}`)),
+        h('div', h('div.muted', 'Health / Armor'), h('div', { style: { fontSize: '22px', fontWeight: 800 } }, `${Math.round(g.player.health)} / ${Math.round(g.player.armor)}`)),
+        h('div', h('div.muted', 'Medkits (key 5)'), h('div', { style: { fontSize: '22px', fontWeight: 800 } }, p.medkits || 0)),
+        h('div', h('div.muted', 'Stats'), h('div', { style: { fontSize: '13px' } }, `Kills ${p.stats?.kills || 0} · Deaths ${p.stats?.deaths || 0} · Taxi fares ${p.stats?.taxiRides || 0} · Goals ${p.stats?.goals || 0} · Arrests ${p.stats?.arrests || 0}`)),
+      ),
+      h('h3', 'Weapons'),
+      h('div.list', ...W.owned.map((w) => h('div.item', h('b', W.name(w)), h('span.muted', w === 'fists' ? 'melee' : `${W.mags[w] ?? 0} / ${Math.max(0, W.total(w) - (W.mags[w] ?? 0))}`), h('div.spacer'), h('button.btn.small' + (W.current === w ? '.primary' : ''), { onclick: () => { W.equip(w); this.closeModal(); g.input.lock(); } }, W.current === w ? 'Equipped' : 'Equip')))),
+      h('h3', `Players in room ${g.net.room ? g.net.room.code : '(solo)'}`),
+      players.length ? h('div.list', ...players.map((r) => h('div.item', h('b', r.avatar.name), h('span.muted', r.avatar.key), r.info.wanted ? h('span.tag.warn', `${r.info.wanted}★`) : null, h('div.spacer'),
+        h('button.btn.small', { onclick: (e) => { const m = g.mp.toggleMute(r.id); e.target.textContent = m ? 'Unmute' : 'Mute'; } }, g.mp.muted.has(r.id) ? 'Unmute' : 'Mute'),
+        h('button.btn.small', { onclick: () => { g.setWaypoint({ x: r.avatar.position.x, z: r.avatar.position.z }); } }, 'Waypoint')))) : h('div.muted', 'No other players here. Share your room code to invite friends!'),
+    ), { onClose: () => g.input.lock() });
+  }
+
   // ------------------------------------------------------------ feedback
   notify(text, kind = '') {
     const box = this.game.hud?.notices || this.root;

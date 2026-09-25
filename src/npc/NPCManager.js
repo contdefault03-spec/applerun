@@ -21,7 +21,7 @@ const ROLE_MIX = {
   mountain: [['civilian', 70], ['athlete', 30]],
 };
 const DENSITY = { downtown: 1, midtown: 0.9, beachfront: 0.9, eastside: 0.8, redbrick: 0.7, sports: 0.7, hillcrest: 0.5, industrial: 0.45, northshore: 0.3, outskirts: 0.25, mountain: 0.2 };
-export const VARIANTS = { civilian: 8, police: 2, gang: 3, junkie: 2, shopkeeper: 2, medic: 1, worker: 2, athlete: 2 };
+export const VARIANTS = { civilian: 8, police: 2, gang: 3, junkie: 2, shopkeeper: 2, medic: 1, worker: 2, athlete: 2, teamA: 2, teamB: 2, wrestler: 3 };
 
 export class NPCManager {
   constructor(game) {
@@ -41,7 +41,8 @@ export class NPCManager {
     for (let i = 0; i < keys.length; i++) { this.game.factory.template(keys[i]); progress?.(i / keys.length); await new Promise((r) => setTimeout(r, 0)); }
   }
 
-  all() { return this.interiorNpcs.length ? [...this.npcs, ...this.interiorNpcs] : this.npcs; }
+  own() { return this.interiorNpcs.length ? [...this.npcs, ...this.interiorNpcs] : this.npcs; }
+  all() { const cops = this.game.police?.officers; return cops?.length || this.interiorNpcs.length || this.extra?.length ? [...this.npcs, ...this.interiorNpcs, ...(cops || []), ...(this.extra || [])] : this.npcs; }
   positions() { return this.npcs.filter((n) => n.alive).map((n) => n.position); }
 
   add(npc) {
@@ -263,6 +264,7 @@ export class NPCManager {
 
   onDeath(npc, attacker) {
     const g = this.game;
+    g.emergency?.onNpcDeath(npc);
     this.noise(npc.position, 30, 'death', npc);
     if (attacker === g.avatar) {
       g.police?.reportCrime?.(npc.role === 'police' ? 'copkill' : 'murder', npc.role === 'police' ? 3 : 2, npc.position);
@@ -309,7 +311,7 @@ export class NPCManager {
       if (this.spawnT < 0 && this.npcs.length < this.target) { this.spawnT = 0.25; const n = this.spawnAround(pp); if (n) this.npcs.push(n); }
     } else if (this.npcs.length && (g.inActivity)) { for (const n of this.npcs) this.remove(n); this.npcs = []; }
     const ctx = { player: pp, camDist: 0 };
-    const list = this.all();
+    const list = this.extra?.length ? [...this.own(), ...this.extra] : this.own();
     for (const n of list) {
       ctx.camDist = n.position.distanceTo(camPos);
       const vis = ctx.camDist < 170 && (!!n.interior === !!g.player.interior);

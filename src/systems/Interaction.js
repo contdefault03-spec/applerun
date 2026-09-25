@@ -33,6 +33,9 @@ export class Interaction {
   playerInteractions(out) {
     const g = this.game;
     if (g.vehicles?.current) return;
+    for (const d of g.mp.remotes.values()) {
+      if (d.hp <= 0 && d.avatar.group.visible && d.avatar.position.distanceTo(g.player.pos) < 2.8) out.push({ label: `Revive ${d.avatar.name}`, key: 'interact', priority: 8, action: () => { g.avatar.anim.play('interact'); g.net.send('revive', { target: d.id }); } });
+    }
     const r = g.mp.lookTarget(3.2);
     if (!r) return;
     const ch = r.avatar.key;

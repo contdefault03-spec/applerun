@@ -36,33 +36,33 @@ export class Avatar {
   setTalking(t) { if (this.talking !== t) { this.talking = t; this.tag?.set(this.name, t); } }
   setTagColor(c) { this.tagColor = c; if (this.tag) { this.tag.color = c; this.tag.set(this.name, this.talking); } }
 
-  /** Attach an item (weapon, ball...) to the right hand. model is authored with grip at origin, barrel along +Z. */
+  /** Hold an item (weapon, ball...) in the right hand. The model is authored with the
+   *  grip at its origin and the barrel along +Z; it is placed at the hand bone each frame
+   *  and oriented along the aim direction (works for every rig). */
   hold(model, kind = 'weapon') {
     if (this.held) { this.held.removeFromParent(); this.held = null; }
     this.heldSpec = model ? { model, kind } : null;
     if (!model) return;
     const m = model.clone();
-    // Hand bones live under a scaled armature — compensate so the item is authored in metres.
-    this.char.root.updateMatrixWorld(true);
-    const s = new THREE.Vector3();
-    this.handR.getWorldScale(s);
-    const rootScale = new THREE.Vector3(); this.group.getWorldScale(rootScale);
-    const k = rootScale.x / s.x;
-    m.scale.multiplyScalar(k);
-    // orient: the hand bone points down the arm; align item forward with the hand's direction
-    m.userData.kind = kind;
-    const wrap = new THREE.Group();
-    wrap.add(m);
-    this.handR.add(wrap);
-    // place so that item forward (+Z) points along the forearm->hand direction rotated forward
-    wrap.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
-    wrap.position.set(0, 0.06 * k * 1.8, 0.02 * k);
-    this.held = wrap;
+    m.userData = { ...model.userData, kind };
+    m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    this.group.add(m);
+    this.held = m;
+  }
+  placeHeld(pitch = 0) {
+    if (!this.held) return;
+    this.group.updateMatrixWorld(true);
+    const hw = new THREE.Vector3();
+    this.handR.getWorldPosition(hw);
+    this.group.worldToLocal(hw);
+    this.held.position.copy(hw);
+    this.held.rotation.set(-pitch, 0, 0);
   }
 
   update(dt, state) {
     this.group.rotation.y = this.yaw;
     this.anim.update(dt, state);
+    if (this.held) this.placeHeld(state?.aim ? (state.aimPitch || 0) : state?.weapon && state.weapon !== 'none' ? -0.5 : -1.2);
   }
 
   headWorld(out = new THREE.Vector3()) {
