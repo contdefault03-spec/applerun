@@ -204,7 +204,7 @@ export class HUD {
       draw();
     });
     c.addEventListener('contextmenu', (e) => { e.preventDefault(); this.game.setWaypoint(null); draw(); });
-    this.mapEl = h('div#bigmap', h('div.wrap', c), h('div.legend.panel', h('b', 'Bayview City'), h('div.muted', 'Click to set a waypoint · right-click to clear · M to close'), h('div', '● You  ', h('span', { style: { color: '#ff4fd8' } }, '● Waypoint')), h('div', { style: { color: '#4fa3ff' } }, '● Players / police'), h('div', { style: { color: '#3ddc84' } }, '● Activities')));
+    this.mapEl = h('div#bigmap', h('div.wrap', c), h('div.legend.panel', h('b', 'Alfredo Applerun'), h('div.muted', 'Click to set a waypoint · right-click to clear · M to close'), h('div', '● You  ', h('span', { style: { color: '#ff4fd8' } }, '● Waypoint')), h('div', { style: { color: '#4fa3ff' } }, '● Players / police'), h('div', { style: { color: '#3ddc84' } }, '● Activities')));
     document.getElementById('ui').append(this.mapEl);
     draw();
     void districtAt;

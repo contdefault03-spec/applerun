@@ -11,8 +11,8 @@ export const TYPE_STYLE = {
 };
 const PITCHED = new Set(['house', 'farmhouse', 'cabin', 'safehouse', 'rough_house']);
 const SIGNS = {
-  police: ['POLICE', '#1b3c8f', '#ffffff'], hospital: ['HOSPITAL', '#ffffff', '#d32f2f'], gunstore: ['BAYVIEW GUNS', '#2b2b2b', '#ffb300'],
-  gym: ['IRON GYM', '#111111', '#ff3d00'], taxi_depot: ['BAYVIEW CABS', '#f7c600', '#111111'], garage: ['MOD GARAGE', '#263238', '#00e5ff'],
+  police: ['POLICE', '#1b3c8f', '#ffffff'], hospital: ['HOSPITAL', '#ffffff', '#d32f2f'], gunstore: ['APPLERUN GUNS', '#2b2b2b', '#ffb300'],
+  gym: ['IRON GYM', '#111111', '#ff3d00'], taxi_depot: ['APPLERUN CABS', '#f7c600', '#111111'], garage: ['MOD GARAGE', '#263238', '#00e5ff'],
   cafe: ['CAFE LUNA', '#5d4037', '#ffe0b2'], restaurant: ['DINER', '#b71c1c', '#ffffff'], bar: ['THE RUSTY BAR', '#3e2723', '#ffca28'],
   clothing: ['THREADS', '#6a1b9a', '#ffffff'], shop: ['24/7 MART', '#1b5e20', '#ffffff'], safehouse: ['SAFEHOUSE', '#37474f', '#80cbc4'],
 };

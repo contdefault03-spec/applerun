@@ -8,7 +8,7 @@ export const PLAYABLE = [
   {
     id: 'max', name: 'Max', base: 'max', height: 1.8,
     tagline: 'The original. Long hair, black tee, zero fear.',
-    description: 'Built from the supplied Max model. A laid-back rocker who knows every street in Bayview and treats the whole city like his personal playground.',
+    description: 'Built from the supplied Max model. A laid-back rocker who knows every street in Applerun and treats the whole city like his personal playground.',
     personality: 'Max is confident, easy-going and a little cocky. Talks like a chill rocker, uses slang, loves cars and trouble.',
     stats: { speed: 1.0, strength: 1.0, stamina: 1.0 },
     accent: '#ff5a36',
@@ -64,8 +64,8 @@ export const PLAYABLE = [
   {
     id: 'dex', name: 'Dex', base: 'man', height: 1.82,
     tagline: 'Supplied rigged male model. Streetwear regular.',
-    description: 'Built from the supplied rigged male model (HumanModels.glb). An everyday Bayview local in a bomber jacket.',
-    personality: 'Dex is a friendly, chatty local guy who knows gossip about everyone in Bayview. Upbeat and helpful.',
+    description: 'Built from the supplied rigged male model (HumanModels.glb). An everyday Applerun local in a bomber jacket.',
+    personality: 'Dex is a friendly, chatty local guy who knows gossip about everyone in Applerun. Upbeat and helpful.',
     stats: { speed: 1.0, strength: 1.0, stamina: 1.0 },
     accent: '#4fa3ff',
     skin: '#8d5a3b', hair: '#111111',

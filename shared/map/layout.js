@@ -1,4 +1,4 @@
-// Bayview City layout — built from the reference map image (public/assets/maps/reference.jpg).
+// Alfredo Applerun layout — built from the reference map image (public/assets/maps/reference.jpg).
 // All authoring coordinates are in *map pixels* of the left (top-down) panel (≈1000 x 1090 px).
 // World space: x = (px - 500) * S, z = (py - 545) * S  (north = -Z, west/ocean = -X).
 import { mulberry32, clamp } from '../rng.js';
@@ -125,7 +125,7 @@ function authorRoads() {
   const R = [];
   const add = (type, pts, opts = {}) => R.push({ type, px: pts, closed: !!opts.closed, name: opts.name || '', smooth: opts.smooth !== false });
   // Highway: from the north, down the east side of downtown, looping to the south roundabout
-  add('highway', [[438, -10], [446, 110], [470, 210], [515, 300], [575, 380], [625, 450], [645, 530], [648, 600], [625, 665], [575, 720], [520, 765], [488, 792]], { name: 'Bayview Freeway' });
+  add('highway', [[438, -10], [446, 110], [470, 210], [515, 300], [575, 380], [625, 450], [645, 530], [648, 600], [625, 665], [575, 720], [520, 765], [488, 792]], { name: 'Applerun Freeway' });
   // East road to industrial district / port
   add('main', [[575, 720], [650, 712], [760, 684], [880, 664], [1005, 652]], { name: 'Harbor Road' });
   // North-east road past Eastside

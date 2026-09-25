@@ -52,7 +52,7 @@ kbd { display: inline-block; min-width: 24px; text-align: center; padding: 3px 7
 
 /* ---------- loading */
 #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 30%, #1b2640, #07090f 70%); z-index: 100; }
-#loading .logo { font-family: var(--display); font-size: 110px; letter-spacing: .06em; background: linear-gradient(135deg, #fff, var(--accent2) 45%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1; }
+#loading .logo { font-family: var(--display); font-size: 96px; text-align: center; letter-spacing: .06em; background: linear-gradient(135deg, #fff, var(--accent2) 45%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1; }
 #loading .sub { color: var(--muted); letter-spacing: .3em; text-transform: uppercase; font-weight: 700; font-size: 13px; margin-bottom: 40px; }
 #loading .bar { width: min(460px, 80vw); height: 6px; border-radius: 99px; background: rgba(255,255,255,0.1); overflow: hidden; }
 #loading .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .2s; }
@@ -62,7 +62,7 @@ kbd { display: inline-block; min-width: 24px; text-align: center; padding: 3px 7
 /* ---------- menus */
 .screen { position: fixed; inset: 0; display: flex; }
 .menu-left { width: 440px; padding: 56px 48px; display: flex; flex-direction: column; background: linear-gradient(90deg, rgba(7,9,15,0.92), rgba(7,9,15,0.55) 80%, transparent); }
-.menu-left .logo { font-family: var(--display); font-size: 84px; white-space: nowrap; line-height: .9; letter-spacing: .05em; background: linear-gradient(135deg, #fff, var(--accent2) 40%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.menu-left .logo { font-family: var(--display); font-size: 60px; white-space: nowrap; line-height: .9; letter-spacing: .05em; background: linear-gradient(135deg, #fff, var(--accent2) 40%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .menu-left .tagline { color: var(--muted); font-weight: 700; letter-spacing: .25em; text-transform: uppercase; font-size: 12px; margin: 6px 0 38px; }
 .menu-btn { display: block; white-space: nowrap; text-align: left; background: transparent; border: none; color: var(--text); font-family: var(--display); font-size: 40px; letter-spacing: .04em; padding: 4px 0; cursor: pointer; opacity: .82; transition: opacity .15s, transform .15s, color .15s; }
 .menu-btn:hover { opacity: 1; transform: translateX(8px); color: var(--accent2); }

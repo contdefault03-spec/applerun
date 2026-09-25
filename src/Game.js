@@ -16,6 +16,8 @@ import { AIClient } from './npc/AIClient.js';
 import { MultiplayerManager } from './net/MultiplayerManager.js';
 import { InteriorManager } from './interiors/InteriorManager.js';
 import { Interaction } from './systems/Interaction.js';
+import { LightPool } from './fx/LightPool.js';
+import { prewarmScene } from './core/Prewarm.js';
 import { Effects } from './fx/Effects.js';
 import { VehicleManager } from './vehicles/VehicleManager.js';
 import { Traffic } from './vehicles/Traffic.js';
@@ -64,13 +66,14 @@ export class Game {
     this.factory.init();
     // Pre-build the playable character templates (fast afterwards)
     for (const id of ['max', 'ajan', 'rize', 'masked', 'lucky', 'dex', 'nova']) { this.factory.template(id); await tick(); }
-    progress(0.65, 'Building Bayview City…');
+    progress(0.65, 'Building Alfredo Applerun…');
     await this.world.build((msg) => progress(null, msg));
     this.hud = new HUD(this);
+    this.lights = new LightPool(this.engine.scene);
     this.mp = this.addSystem(new MultiplayerManager(this));
     this.activities = this.addSystem(new ActivityManager(this));
     this.interiors = this.addSystem(new InteriorManager(this));
-    this.fx = new Effects(this.engine.scene);
+    this.fx = new Effects(this.engine.scene, this.lights);
     this.addSystem({ update: (dt) => this.fx.update(dt) });
     this.vehicles = this.addSystem(new VehicleManager(this));
     this.traffic = this.addSystem(new Traffic(this));
@@ -81,11 +84,14 @@ export class Game {
     this.emergency = this.addSystem(new Emergency(this));
     this.events = this.addSystem(new Events(this));
     this.dialogue = new Dialogue(this);
-    progress(0.9, 'Dressing up the citizens of Bayview…');
+    progress(0.9, 'Dressing up the citizens of Applerun…');
     await this.npcs.prebuild();
     this.interaction = this.addSystem(new Interaction(this));
     this.voice = this.addSystem(new VoiceChat(this));
     this.audio.addSample('ajan', this.assets.audio.ajan);
+    if (this.assets.audio.fish) this.audio.addSample('fish', this.assets.audio.fish);
+    progress(0.93, 'Warming up shaders…');
+    await prewarmScene(this);
     progress(0.95, 'Connecting to game server…');
     this.net.on('welcome', (m) => this.setProfile(m.profile));
     await this.net.connect();
@@ -199,7 +205,7 @@ export class Game {
     this.setMode('playing');
     this.audio.stopMusic();
     this.input.lock();
-    if (!this.welcomed) { this.welcomed = true; this.hud.bigMessage('BAYVIEW CITY', `Welcome, ${this.settings.get('player.name')}. Press M for the map, P for jobs & activities.`, 5); }
+    if (!this.welcomed) { this.welcomed = true; this.hud.bigMessage('ALFREDO APPLERUN', `Welcome, ${this.settings.get('player.name')}. Press M for the map, P for jobs & activities.`, 5); }
   }
 
   spawnPlayer() {
@@ -296,8 +302,8 @@ export class Game {
       case 'save': this.setHealth(100); this.world.env.setTime((this.world.env.time + 8) % 24); r('You slept 8 hours. Progress saved, health restored.'); break;
       case 'workout': this.avatar.anim.play('flex'); this.player.stamina = 100; r('Feel the burn! Stamina maxed.'); break;
       case 'tv': u.target && (u.target.material.emissiveIntensity = u.target.material.emissiveIntensity > 0.1 ? 0 : 0.6); break;
-      case 'light': for (const L of it.lights) L.visible = !L.visible; break;
-      case 'computer': r(['You check the Bayview news: "Gorilla in tech fleece spotted downtown."', 'You scroll memes for 10 minutes.', 'Stock tip: invest in umbrella hats.'][Math.floor(Math.random() * 3)], 'info'); break;
+      case 'light': this.interiors.toggleLights(it); break;
+      case 'computer': r(['You check the Applerun news: "Gorilla in tech fleece spotted downtown."', 'You scroll memes for 10 minutes.', 'Stock tip: invest in umbrella hats.'][Math.floor(Math.random() * 3)], 'info'); break;
       case 'rob': {
         this.avatar.anim.play('interact');
         const res = await this.net.request('reward', { kind: 'robbery' });

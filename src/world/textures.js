@@ -206,7 +206,7 @@ export function graffitiTexture(v) {
   return canvasTex('graffiti' + v, 256, 128, (g, w, h) => {
     g.clearRect(0, 0, w, h);
     const cols = ['#ff2d95', '#00e5ff', '#ffe600', '#7cff00', '#ff6a00', '#b388ff'];
-    const words = ['BAYVIEW', 'EASTSIDE', 'RIZE', 'AJAN', 'LUCKY', 'XHAN', 'GG', 'LOL', 'KINGS'];
+    const words = ['APPLERUN', 'EASTSIDE', 'RIZE', 'AJAN', 'LUCKY', 'XHAN', 'GG', 'LOL', 'KINGS'];
     g.lineJoin = 'round';
     g.font = 'bold 58px Arial, sans-serif';
     g.textAlign = 'center';

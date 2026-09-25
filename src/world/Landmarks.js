@@ -76,7 +76,7 @@ export function buildLandmarks() {
       s.add(goal);
     }
     // big sign
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(40, 6), new THREE.MeshStandardMaterial({ map: signTexture('BAYVIEW STADIUM', '#0d2a5c', '#ffffff'), emissive: '#ffffff', emissiveIntensity: 0.15 }));
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(40, 6), new THREE.MeshStandardMaterial({ map: signTexture('APPLERUN STADIUM', '#0d2a5c', '#ffffff'), emissive: '#ffffff', emissiveIntensity: 0.15 }));
     sign.position.set(0, 30, st.hz + 0.2); s.add(sign);
     g.add(s);
   }
@@ -99,7 +99,7 @@ export function buildLandmarks() {
     for (const sx of [-1, 1]) for (let t = 0; t < 3; t++) s.add(box(3, 1.5 + t * 2.5, ar.hz * 2 - 2 * at, t % 2 ? seatWhite : M('#c62828'), sx * (ar.hx - at + 1.5 + t * 3), 0.75 + t * 1.25, 0));
     // hoops
     for (const sx of [-1, 1]) s.add(hoop(sx * 12.7, 0, sx));
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(18, 3), new THREE.MeshStandardMaterial({ map: signTexture('BAYVIEW ARENA', '#8b1a1a', '#ffffff'), emissive: '#ffffff', emissiveIntensity: 0.15 }));
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(18, 3), new THREE.MeshStandardMaterial({ map: signTexture('APPLERUN ARENA', '#8b1a1a', '#ffffff'), emissive: '#ffffff', emissiveIntensity: 0.15 }));
     sign.position.set(0, 11, -ar.hz - 0.2); sign.rotation.y = Math.PI; s.add(sign);
     g.add(s);
   }
@@ -128,7 +128,7 @@ export function buildLandmarks() {
     body.scale.z = dm.hz / dm.hx; body.position.y = 5; body.castShadow = true; body.receiveShadow = true; s.add(body);
     const dome = new THREE.Mesh(new THREE.SphereGeometry(dm.hx * 0.98, 40, 16, 0, Math.PI * 2, 0, Math.PI / 2), M('#e9edf2', { roughness: 0.35, metalness: 0.3 }));
     dome.scale.set(1, 0.35, dm.hz / dm.hx); dome.position.y = 10; dome.castShadow = true; s.add(dome);
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(20, 3.2), new THREE.MeshStandardMaterial({ map: signTexture('BAYVIEW DOME · WRESTLING', '#4a148c', '#ffeb3b'), emissive: '#ffffff', emissiveIntensity: 0.2 }));
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(20, 3.2), new THREE.MeshStandardMaterial({ map: signTexture('APPLERUN DOME · WRESTLING', '#4a148c', '#ffeb3b'), emissive: '#ffffff', emissiveIntensity: 0.2 }));
     sign.position.set(0, 7, -dm.hz - 0.3); sign.rotation.y = Math.PI; s.add(sign);
     // entrance
     s.add(box(6, 4, 1, M('#2b2b2b'), 0, 2, -dm.hz + 0.2));

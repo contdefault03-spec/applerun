@@ -1,4 +1,4 @@
-// WebSocket client for the Bayview game server. Handles identity, rooms, snapshots,
+// WebSocket client for the Applerun game server. Handles identity, rooms, snapshots,
 // request/response calls and reconnection. When the server is unreachable the game
 // runs in solo mode and `request()` is answered by the local backend.
 export class Network {

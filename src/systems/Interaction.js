@@ -6,12 +6,11 @@ export class Interaction {
   constructor(game) {
     this.game = game;
     this.current = null;
-    this.cooldown = 0;
+    this.readyAt = 0;
     game.onRemoteFx = (kind, r, a) => this.onRemoteFx(kind, r, a);
   }
   update(dt, playing) {
     const g = this.game;
-    this.cooldown = Math.max(0, this.cooldown - dt);
     if (!playing || !g.player || g.player.mode === 'dead' || g.ui.modalOpen) { g.hud.prompt(null); return; }
     const out = [];
     const pos = g.player.pos;
@@ -26,7 +25,12 @@ export class Interaction {
     if (best) {
       const k = g.settings.binding(best.key || 'interact').replace(/^Key/, '');
       g.hud.prompt(`Press <kbd>${k}</kbd> — ${best.label}`);
-      if (g.input.hit(best.key || 'interact') && this.cooldown <= 0) { this.cooldown = 0.35; best.action(); }
+      // wall-clock debounce: one key press = one action, whatever the frame rate
+      if (g.input.hit(best.key || 'interact') && performance.now() >= this.readyAt) {
+        this.readyAt = performance.now() + 350;
+        g.input.consume(best.key || 'interact');
+        best.action();
+      }
     } else g.hud.prompt(null);
   }
 

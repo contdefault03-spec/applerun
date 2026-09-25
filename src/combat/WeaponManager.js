@@ -377,7 +377,7 @@ export class WeaponManager {
     g.avatar.anim.play('getUp');
     if (m.revived) { g.hud.bigMessage('REVIVED', `${m.by} got you back on your feet.`, 2.5, '#7dff9b'); g.player.vel.set(0, 0, 0); return; }
     g.player.teleport(m.p[0], null, m.p[2]);
-    if (!g.inActivity) g.hud.bigMessage('BAYVIEW GENERAL', 'You were patched up at the hospital ($200 bill).', 3, '#7dff9b');
+    if (!g.inActivity) g.hud.bigMessage('APPLERUN GENERAL', 'You were patched up at the hospital ($200 bill).', 3, '#7dff9b');
     g.police?.clear?.();
     g.activities?.onRespawn?.();
   }
@@ -420,6 +420,6 @@ export class WeaponManager {
       }));
     };
     render();
-    g.ui.modal('Bayview Guns', h('div', h('p.muted', 'Purchases are validated by the server. Money: ', money), grid), { wide: true, onClose: () => g.input.lock() });
+    g.ui.modal('Applerun Guns', h('div', h('p.muted', 'Purchases are validated by the server. Money: ', money), grid), { wide: true, onClose: () => g.input.lock() });
   }
 }

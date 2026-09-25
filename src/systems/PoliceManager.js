@@ -22,6 +22,7 @@ export class PoliceManager {
     this.units = [];     // {veh, driver, officers[]}
     this.officers = [];  // on-foot officers (NPC)
     this.heli = null;
+    game.lights.spot('heli', { distance: 120, angle: 0.25, penumbra: 0.4 }); // reserved up front (no shader recompiles later)
     this.reportQueue = [];
     this.arresting = 0;
     this.onDuty = false;
@@ -126,8 +127,8 @@ export class PoliceManager {
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 5), body.material); tail.position.z = -4; grp.add(tail);
     const rotor = new THREE.Mesh(new THREE.BoxGeometry(9, 0.08, 0.35), new THREE.MeshStandardMaterial({ color: '#111' })); rotor.position.y = 1.6; grp.add(rotor);
     const rotor2 = rotor.clone(); rotor2.rotation.y = Math.PI / 2; grp.add(rotor2);
-    const light = new THREE.SpotLight('#ffffff', 400, 120, 0.25, 0.4, 1.2);
-    light.position.set(0, -1, 1); grp.add(light); grp.add(light.target);
+    const light = g.lights.spot('heli', { distance: 120, angle: 0.25, penumbra: 0.4 });
+    light.intensity = 400;
     grp.position.copy(g.player.pos).add(new THREE.Vector3(80, 60, 80));
     g.engine.scene.add(grp);
     this.heli = { grp, rotor, rotor2, light, t: 0, shootT: 3, sound: g.audio.engineLoop('truck') };
@@ -141,14 +142,15 @@ export class PoliceManager {
     H.grp.position.lerp(target, Math.min(1, dt * 0.6));
     H.grp.lookAt(pp.x, H.grp.position.y, pp.z);
     H.rotor.rotation.y += dt * 30; H.rotor2.rotation.y += dt * 30;
-    H.light.target.position.copy(H.grp.worldToLocal(pp.clone()));
-    H.light.visible = g.world.env.nightFactor > 0.3;
+    H.light.position.copy(H.grp.position).y -= 1;
+    H.light.target.position.copy(pp);
+    H.light.intensity = g.world.env.nightFactor > 0.3 ? 400 : 0;
     H.sound?.update(H.grp.position, 0.7, 0.6, 0);
     if (!H.leaving && this.level >= 5) {
       H.shootT -= dt;
       if (H.shootT < 0) { H.shootT = 0.18; const from = H.grp.position.clone(); g.audio.gunshot(from, 'm4a1'); const miss = Math.random() > 0.2; const to = pp.clone().add(new THREE.Vector3(miss ? (Math.random() - 0.5) * 6 : 0, 1, miss ? (Math.random() - 0.5) * 6 : 0)); g.fx.tracer(from, to); if (!miss) g.damageSelf(6, 'police'); }
     }
-    if (H.leaving && H.grp.position.distanceTo(pp) > 300) { g.engine.scene.remove(H.grp); H.sound?.stop(); this.heli = null; }
+    if (H.leaving && H.grp.position.distanceTo(pp) > 300) { g.engine.scene.remove(H.grp); H.sound?.stop(); H.light.intensity = 0; this.heli = null; }
   }
 
   // ------------------------------------------------------------------ per frame
@@ -258,7 +260,7 @@ export class PoliceManager {
       g.player.mode = 'foot';
       g.player.teleport(st.door.x + Math.sin(st.door.rot) * 3, null, st.door.z + Math.cos(st.door.rot) * 3);
       this.clear(true);
-      g.ui.notify(`You were released from the Bayview PD. Fine paid: $${fine}.`, 'info');
+      g.ui.notify(`You were released from the Applerun PD. Fine paid: $${fine}.`, 'info');
     }, 4000);
   }
 

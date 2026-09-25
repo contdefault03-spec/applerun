@@ -6,9 +6,11 @@ import { heightAt } from '../../shared/map/terrain.js';
 // Owns every vehicle: parked cars from the map (streamed around the player), networked
 // vehicles driven by other players, and the local player's vehicle (driver or passenger).
 const STREAM_IN = 240, STREAM_OUT = 290;
+const TOGGLE_COOLDOWN = 0.5; // wall-clock seconds between vehicle enter/exit actions
 
 export class VehicleManager {
   constructor(game) {
+    this.headlights = ['headL', 'headR'].map((n) => game.lights.spot(n, { color: '#fff4d6', distance: 70, angle: 0.45, penumbra: 0.5 }));
     this.game = game;
     this.layout = game.layout;
     this.vehicles = new Map(); // id -> Vehicle (instantiated)
@@ -100,7 +102,7 @@ export class VehicleManager {
   interactions(out, pos) {
     const g = this.game;
     if (g.player.interior || g.player.mode !== 'foot') return;
-    if (this.current) return;
+    if (this.current || this.toggleCd > 0 || this.entering) return;
     const v = this.nearest(pos, 3.6);
     if (v) {
       const busy = v.driver && v.driver !== g.net.id;
@@ -119,11 +121,26 @@ export class VehicleManager {
     return best;
   }
 
+  // One press of the vehicle key = one action: presses are consumed, a request in flight
+  // blocks further attempts and a short cooldown follows every enter/exit.
+  get toggleCd() { return Math.max(0, (this.toggleUntil || 0) - performance.now()) / 1000; }
+  set toggleCd(sec) { this.toggleUntil = performance.now() + sec * 1000; }
+  beginToggle() {
+    if (this.toggleCd > 0 || this.entering) return false;
+    this.toggleCd = TOGGLE_COOLDOWN;
+    this.game.input.consume('vehicle');
+    return true;
+  }
   async enter(v, seat = 0) {
     const g = this.game;
+    if (!this.beginToggle()) return;
     if (g.net.connected && g.net.room) {
-      const r = await g.net.request('vehEnter', { id: v.id, seat });
+      this.entering = true;
+      let r;
+      try { r = await g.net.request('vehEnter', { id: v.id, seat }); } finally { this.entering = false; }
+      this.toggleCd = TOGGLE_COOLDOWN;
       if (!r.ok) { g.ui.notify(r.error || 'Cannot enter', 'bad'); return; }
+      if (this.current || g.player.mode !== 'foot') return;
       seat = r.v.driver === g.net.id ? 0 : Math.max(1, r.v.passengers.indexOf(g.net.id) + 1);
     }
     this.seatLocal(v, seat);
@@ -149,6 +166,7 @@ export class VehicleManager {
   }
   async hijack(t) {
     const g = this.game;
+    if (!this.beginToggle()) return;
     const st = g.traffic.takeOver(t);
     if (!st) return;
     g.police?.reportCrime?.('carjack', 2, new THREE.Vector3(st.x, 0, st.z));
@@ -170,6 +188,7 @@ export class VehicleManager {
     const g = this.game;
     const v = this.current;
     if (!v) return;
+    if (!force && !this.beginToggle()) return;
     if (!force && Math.abs(v.speed) > 9 && !v.destroyed && !v.sinking) { g.ui.notify('Slow down before jumping out!', 'info'); return; }
     // find a free spot beside the vehicle
     const col = g.world.collision;
@@ -182,6 +201,7 @@ export class VehicleManager {
       if (test.distanceTo(p) < 0.3) { spot = p; break; }
     }
     if (!spot) { spot = v.position.clone(); spot.y += v.spec.height + 0.2; }
+    this.toggleCd = TOGGLE_COOLDOWN;
     this.current = null;
     v.isDriver = false;
     if (v.driver === (g.net.id || 'me')) v.driver = null;
@@ -231,7 +251,7 @@ export class VehicleManager {
     const input = g.input;
     const v = this.current;
     if (v) {
-      if (playing && input.hit('vehicle')) { this.exitLocal(); }
+      if (playing && input.hit('vehicle')) { input.consume('vehicle'); this.exitLocal(); }
     }
     if (this.current) {
       const cv = this.current;
@@ -367,9 +387,7 @@ export class VehicleManager {
     const g = this.game;
     const v = this.current;
     const night = g.world.env.nightFactor;
-    if (!this.headlights) {
-      this.headlights = [0, 1].map(() => { const l = new THREE.SpotLight('#fff4d6', 0, 70, 0.45, 0.5, 1.2); l.castShadow = false; g.engine.scene.add(l, l.target); return l; });
-    }
+    if (!this.headlights) this.headlights = ['headL', 'headR'].map((n) => g.lights.spot(n, { color: '#fff4d6', distance: 70, angle: 0.45, penumbra: 0.5 }));
     for (const [i, l] of this.headlights.entries()) {
       if (!v || v.spec.bike && i === 1) { l.intensity = 0; continue; }
       const on = night > 0.4 || v.lightsOn;

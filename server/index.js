@@ -1,4 +1,4 @@
-// Bayview game server: static hosting of the built client + authoritative WebSocket game server.
+// Applerun game server: static hosting of the built client + authoritative WebSocket game server.
 //   node server/index.js           (PORT, GEMINI_API_KEY, FIREBASE_SERVICE_ACCOUNT, ALLOWED_ORIGINS in env / .env)
 import http from 'node:http';
 import fs from 'node:fs';
@@ -52,7 +52,7 @@ const server = http.createServer((req, res) => {
   let p = path.normalize(path.join(DIST, decodeURIComponent(url.pathname)));
   if (!p.startsWith(DIST)) { res.writeHead(403); res.end(); return; }
   if (!fs.existsSync(p) || fs.statSync(p).isDirectory()) p = path.join(DIST, 'index.html');
-  if (!fs.existsSync(p)) { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('Bayview game server is running. Build the client (npm run build) to serve it from here, or run the Vite dev server.'); return; }
+  if (!fs.existsSync(p)) { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('Applerun game server is running. Build the client (npm run build) to serve it from here, or run the Vite dev server.'); return; }
   const ext = path.extname(p);
   res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400' });
   fs.createReadStream(p).pipe(res);
@@ -114,7 +114,7 @@ async function handleRequest(c, op, d) {
   }
 }
 
-server.listen(PORT, () => console.log(`[server] Bayview listening on :${PORT} (ws path /ws) — AI ${geminiStatus().serverKey ? 'enabled' : 'disabled (no GEMINI_API_KEY)'}`));
+server.listen(PORT, () => console.log(`[server] Applerun listening on :${PORT} (ws path /ws) — AI ${geminiStatus().serverKey ? 'enabled' : 'disabled (no GEMINI_API_KEY)'}`));
 const shutdown = () => { rooms.saveAll(); store.flush?.(); process.exit(0); };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

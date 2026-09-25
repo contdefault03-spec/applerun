@@ -10,7 +10,7 @@ import { Prefabs, mat } from './furniture.js';
 export const DOME_ID = 1000;
 const NAMES = {
   house: 'House', apartment: 'Apartment', safehouse: 'Your Safehouse', office: 'Office', shop: '24/7 Mart', restaurant: 'Diner', bar: 'The Rusty Bar',
-  gunstore: 'Bayview Guns', police: 'Police Station', hospital: 'Bayview General Hospital', gym: 'Iron Gym', garage: 'Garage', warehouse: 'Warehouse', dome: 'Bayview Dome',
+  gunstore: 'Applerun Guns', police: 'Police Station', hospital: 'Applerun General Hospital', gym: 'Iron Gym', garage: 'Garage', warehouse: 'Warehouse', dome: 'Applerun Dome',
 };
 const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'] };
 const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e' };
@@ -21,6 +21,7 @@ export class InteriorManager {
     this.layout = getLayout();
     this.interiors = new Map();
     this.current = null;
+    this.pool = [0, 1, 2].map((i) => game.lights.point('interior' + i, { color: '#fff1dd', decay: 1 }));
     this.fade = document.createElement('div');
     Object.assign(this.fade.style, { position: 'fixed', inset: 0, background: '#000', opacity: 0, transition: 'opacity .25s', pointerEvents: 'none', zIndex: 20 });
     document.body.append(this.fade);
@@ -98,7 +99,9 @@ export class InteriorManager {
     // lights
     const nl = Math.max(1, Math.min(3, Math.round((W * D) / 110)));
     for (let i = 0; i < nl; i++) {
-      const L = new THREE.PointLight('#fff1dd', type === 'bar' ? 4 : 6, Math.max(W, D) * 1.2, 1);
+      // light slot: a pooled PointLight is moved here while this interior is occupied
+      const L = new THREE.Object3D();
+      L.userData = { intensity: type === 'bar' ? 4 : 6, distance: Math.max(W, D) * 1.2 };
       L.position.set(-W / 2 + (W / (nl + 1)) * (i + 1), H - 0.4, 0);
       g.add(L); it.lights.push(L);
       const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff4e0', emissiveIntensity: 1 }));
@@ -251,10 +254,13 @@ export class InteriorManager {
     if (this.current) this.current.group.visible = false;
     this.current = it;
     it.group.visible = true;
+    it.lightsOn = true;
+    this.applyLights(it);
     g.world.setOutdoorVisible(false);
     g.engine.scene.fog.density = 0.004;
     g.engine.scene.background = new THREE.Color('#0a0a0f');
-    g.world.env.sun.castShadow = false;
+    // toggling castShadow would recompile every shader; just stop updating the shadow map
+    g.world.env.sun.shadow.autoUpdate = false;
     g.world.env.hemi.intensity = 0.45;
     const o = it.origin;
     g.player.interior = it;
@@ -265,6 +271,17 @@ export class InteriorManager {
     for (const s of g.systems) s.onEnterInterior?.(it);
     this.fadeTo(0);
   }
+  // Move the pooled interior lights into the occupied interior's light slots (or switch them off).
+  applyLights(it) {
+    for (let i = 0; i < this.pool.length; i++) {
+      const L = this.pool[i], slot = it?.lights[i];
+      if (!slot || !it.lightsOn) { L.intensity = 0; continue; }
+      it.group.updateMatrixWorld(true);
+      slot.getWorldPosition(L.position);
+      L.intensity = slot.userData.intensity; L.distance = slot.userData.distance;
+    }
+  }
+  toggleLights(it) { it.lightsOn = !it.lightsOn; if (it === this.current) this.applyLights(it); }
   async exit() {
     const g = this.game;
     const it = this.current;
@@ -273,11 +290,12 @@ export class InteriorManager {
     g.audio.door(g.player.pos);
     it.group.visible = false;
     this.current = null;
+    this.applyLights(null);
     g.player.interior = null;
     g.world.setOutdoorVisible(true);
     g.engine.scene.fog.density = 0.0009;
     g.engine.scene.background = null;
-    g.world.env.sun.castShadow = g.engine.quality !== 'low';
+    g.world.env.sun.shadow.autoUpdate = true;
     const b = this.building(it.bid);
     const d = b.door;
     const out = 1.8;

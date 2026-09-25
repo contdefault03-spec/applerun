@@ -125,7 +125,7 @@ export class Dialogue {
     const len = g.settings.get('ai.responseLength');
     const lenRule = len === 'long' ? 'Reply in 2-4 sentences.' : len === 'medium' ? 'Reply in 1-3 sentences.' : 'Reply in 1-2 short sentences.';
     return [
-      `You are ${p.name}, a ${p.age}-year-old ${p.job} living in Bayview, a fictional coastal city in a sandbox video game.`,
+      `You are ${p.name}, a ${p.age}-year-old ${p.job} living in Applerun, a fictional coastal city in a sandbox video game.`,
       `Personality: ${p.trait} and ${p.trait2}. Quirk: ${p.quirk}. Speech style: ${p.style}.`,
       `You are talking face to face with ${me}, who looks like ${LOOKS[ch] || 'an ordinary person'}.${def?.personality ? ` (Known around town: ${def.personality.split('.')[0]}.)` : ''}`,
       `Situation: ${ctx.join(' ')}`,

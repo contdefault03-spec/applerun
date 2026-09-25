@@ -25,6 +25,20 @@ export class AudioManager {
     this.noiseBuf = this.makeNoise(2);
     for (const [id, raw] of Object.entries(this.pendingRaw)) await this.decode(id, raw);
     this.pendingRaw = {};
+    this.warmup();
+  }
+  // Build one of every node type we use (HRTF panner, filters, oscillators, buffer sources)
+  // through a muted gain, so the first gunshot/engine/sample doesn't pay the setup cost
+  // (Chrome loads its HRTF database when the first HRTF panner is created).
+  warmup() {
+    const c = this.ctx, t = c.currentTime;
+    const mute = c.createGain(); mute.gain.value = 0; mute.connect(c.destination);
+    const p = c.createPanner(); p.panningModel = 'HRTF'; p.connect(mute);
+    const f = c.createBiquadFilter(); f.connect(p);
+    const s = c.createBufferSource(); s.buffer = this.noiseBuf; s.connect(f); s.start(t); s.stop(t + 0.05);
+    const o = c.createOscillator(); o.connect(f); o.start(t); o.stop(t + 0.05);
+    for (const id of Object.keys(this.buffers)) { const b = c.createBufferSource(); b.buffer = this.buffers[id]; b.connect(mute); b.start(t); b.stop(t + 0.01); }
+    setTimeout(() => { try { mute.disconnect(); } catch { /* ignore */ } }, 300);
   }
   applyVolumes() {
     if (!this.ctx) return;

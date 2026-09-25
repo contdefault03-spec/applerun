@@ -62,7 +62,7 @@ class Room {
     while (mgr.rooms.has(this.code)) this.code = code6();
     this.kind = kind; this.mode = mode; this.size = size;
     this.private = !!priv;
-    this.name = clean(name, 32) || (kind === 'world' ? 'Bayview Free Roam' : `${mode} ${size}`);
+    this.name = clean(name, 32) || (kind === 'world' ? 'Applerun Free Roam' : `${mode} ${size}`);
     this.max = kind === 'world' ? 24 : 12;
     this.hostId = hostId;
     this.clients = new Map();
@@ -147,7 +147,7 @@ export class RoomManager {
       case 'listRooms': return { ok: true, rooms: this.publicList() };
       case 'quickJoin': {
         let r = [...this.rooms.values()].find((x) => x.kind === 'world' && !x.private && x.clients.size < x.max);
-        if (!r) { r = new Room(this, { kind: 'world', name: 'Bayview Public', hostId: c.id }); this.rooms.set(r.code, r); }
+        if (!r) { r = new Room(this, { kind: 'world', name: 'Applerun Public', hostId: c.id }); this.rooms.set(r.code, r); }
         return this.join(c, r);
       }
       case 'createRoom': {

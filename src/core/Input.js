@@ -46,6 +46,8 @@ export class Input {
   unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
   down(action) { return this.enabled && this.keys.has(this.settings.binding(action)); }
   hit(action) { return this.enabled && this.pressed.has(this.settings.binding(action)); }
+  // Mark a press as handled so no other system reacts to it in the same frame
+  consume(action) { this.pressed.delete(this.settings.binding(action)); }
   released_(action) { return this.released.has(this.settings.binding(action)); }
   axis() {
     return { x: (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y: (this.down('forward') ? 1 : 0) - (this.down('back') ? 1 : 0) };

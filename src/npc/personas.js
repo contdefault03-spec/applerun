@@ -7,7 +7,7 @@ const LAST = ['Reyes', 'Johnson', 'Kowalski', 'Patel', 'Okafor', 'Nguyen', 'Broo
 const TRAITS = ['cheerful', 'grumpy', 'paranoid', 'flirty', 'nerdy', 'sarcastic', 'overly polite', 'conspiracy-minded', 'hyper', 'sleepy', 'dramatic', 'deadpan', 'nosy', 'philosophical', 'competitive', 'gossipy', 'anxious', 'cocky', 'wholesome', 'blunt'];
 const JOBS = {
   civilian: ['barista', 'accountant', 'dog walker', 'student', 'retired teacher', 'food truck owner', 'influencer', 'bike courier', 'nurse on a day off', 'street musician', 'real estate agent', 'tourist from out of town', 'gym bro', 'office worker on lunch break'],
-  shopkeeper: ['shop owner', 'cashier'], police: ['Bayview PD officer'], gang: ['Eastside crew member'], junkie: ['down-on-their-luck drifter'],
+  shopkeeper: ['shop owner', 'cashier'], police: ['Applerun PD officer'], gang: ['Eastside crew member'], junkie: ['down-on-their-luck drifter'],
   resident: ['homeowner'], worker: ['dock worker', 'construction worker', 'mechanic'], athlete: ['semi-pro athlete'], medic: ['paramedic'],
 };
 const QUIRKS = ['always hungry', 'obsessed with their car', 'thinks the gorilla in the tech fleece is a legend', 'is saving up for a boat', 'hates pigeons', 'is training for a marathon', 'collects umbrella hats', 'swears they saw a UFO over North Mountain', 'is late for something', 'just got dumped', 'won a small lottery prize', 'is writing a rap album', 'knows everybody at the pier', 'is afraid of the ocean', 'wants to wrestle at the Dome one day'];
@@ -37,7 +37,7 @@ function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Ma
 
 // Built-in fallback dialogue when Gemini is unavailable.
 export const FALLBACK = {
-  civilian: ['Nice day in Bayview, huh?', 'Have you seen the gorilla in the tech fleece? Legend.', "I'm kinda busy, sorry.", 'Watch out for the traffic on Pier Street.', 'You look like you need a coffee.', 'The pier ferris wheel is the best view in town.'],
+  civilian: ['Nice day in Applerun, huh?', 'Have you seen the gorilla in the tech fleece? Legend.', "I'm kinda busy, sorry.", 'Watch out for the traffic on Pier Street.', 'You look like you need a coffee.', 'The pier ferris wheel is the best view in town.'],
   shopkeeper: ["Welcome in! Let me know if you need anything.", "Everything's fairly priced, I promise.", 'No shoplifting, alright?'],
   police: ['Keep it moving, citizen.', "I've got my eye on you.", 'Report any suspicious activity.', "Don't make me write you up."],
   gang: ["You lost? This ain't your block.", 'Walk away, homie.', 'Eastside runs this.'],

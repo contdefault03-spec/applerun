@@ -1,4 +1,4 @@
-# Bayview City
+# Alfredo Applerun
 
 A multiplayer 3D open-world browser game built with Three.js and Vite. It runs on a Node.js WebSocket game server, with WebRTC proximity voice and Gemini-powered NPC conversations. Firestore persistence is optional.
 

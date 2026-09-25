@@ -15,7 +15,7 @@ export class UIManager {
 
   // ------------------------------------------------------------ loading
   showLoading() {
-    this.loading = h('div#loading', h('div.logo', 'BAYVIEW'), h('div.sub', 'Multiplayer Open World'), h('div.bar', h('i')), h('div.msg', 'Loading…'), h('div.err'));
+    this.loading = h('div#loading', h('div.logo', 'ALFREDO', h('br'), 'APPLERUN'), h('div.sub', 'Multiplayer Open World'), h('div.bar', h('i')), h('div.msg', 'Loading…'), h('div.err'));
     document.body.append(this.loading);
   }
   setLoading(p, msg) {
@@ -44,7 +44,7 @@ export class UIManager {
     const def = PLAYABLE_BY_ID[this.settings.get('player.character')] || PLAYABLE[0];
     const el = h('div.screen',
       h('div.menu-left',
-        h('div.logo', 'BAYVIEW'),
+        h('div.logo', 'ALFREDO', h('br'), 'APPLERUN'),
         h('div.tagline', 'Multiplayer open-world sandbox'),
         item('Play', 'Free roam with friends', () => g.quickPlay()),
         item('Character', def.name, () => this.showCharacterSelect(() => this.showMainMenu())),
@@ -231,7 +231,7 @@ export class UIManager {
 
   showCredits() {
     this.modal('Credits', h('div', { style: { lineHeight: 1.7 } },
-      h('p', h('b', 'Bayview'), ' — an original multiplayer open-world sandbox.'),
+      h('p', h('b', 'Alfredo Applerun'), ' — an original multiplayer open-world sandbox.'),
       h('p.muted', 'Characters: Max (supplied scan, auto-rigged in-engine), HumanModels.glb (supplied rigged man & woman) used as the base for Ajan, Rize, Masked, Lucky, Dex, Nova and every NPC. Audio: supplied ajan.mp3 + procedurally synthesised effects. Video: supplied rize_did_it.mp4. City layout recreated from the supplied map.'),
       h('p.muted', 'Tech: Three.js, Vite, Node.js WebSocket game server, WebRTC voice, Google Gemini, optional Firebase persistence.'),
     ));
@@ -281,8 +281,8 @@ export class UIManager {
       h('p.muted', 'Create a private activity room and share the code, or quick-play against AI. Your free-roam character is kept safe while you are in an activity.'),
       h('div.shop-grid',
         card('Gunfight (CS-style)', 'Team deathmatch rounds in the industrial district. Buy weapons in the lobby.', 'combat', ['1v1', '2v2', '3v3', '5v5']),
-        card('Football', '5-a-side or full squads at Bayview Stadium, AI fills empty spots.', 'football', ['1v1', '3v3', '5v5']),
-        card('Basketball', 'Streetball / full court at Bayview Arena with a shot meter.', 'basketball', ['1v1', '2v2', '3v3']),
+        card('Football', '5-a-side or full squads at Applerun Stadium, AI fills empty spots.', 'football', ['1v1', '3v3', '5v5']),
+        card('Basketball', 'Streetball / full court at Applerun Arena with a shot meter.', 'basketball', ['1v1', '2v2', '3v3']),
         card('Wrestling', 'Ridiculous wrestling in the Dome ring. Grapples, slams, pins.', 'wrestling', ['1v1', 'FFA']),
       ),
       h('h3', 'Join an activity with a code'),
