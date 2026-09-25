@@ -28,5 +28,19 @@ async function boot() {
   }
   bootUI.hideLoading();
   game.showMenu();
+  // Invite links: https://your-site/?room=CODE joins that room straight away
+  const invite = new URLSearchParams(location.search).get('room');
+  if (invite) {
+    const join = () => game.joinRoom(invite.toUpperCase());
+    if (game.settings.get('player.name')) game.ui.notify(`Invite for room ${invite.toUpperCase()} — click Play or press Join`, 'info');
+    game.pendingInvite = invite.toUpperCase();
+    game.ui.modal('Join your friend?', (() => {
+      const d = document.createElement('div');
+      d.innerHTML = `<p>You were invited to room <b>${invite.toUpperCase().replace(/[^A-Z0-9]/g, '')}</b>.</p>`;
+      const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = 'Join room';
+      b.onclick = () => { game.ui.closeModal(); if (!game.settings.get('player.name')) game.ui.askName(join); else join(); };
+      d.append(b); return d;
+    })());
+  }
 }
 boot();

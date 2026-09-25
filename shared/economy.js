@@ -55,6 +55,7 @@ export function applyReward(p, kind, data = {}) {
     case 'police': amount = Math.max(0, Math.min(300, data.amount | 0)); break;
     case 'paramedic': amount = 120; break;
     case 'tip': amount = -Math.min(p.money, 5); break;
+    case 'repair': amount = -Math.min(p.money, 150); break;
     case 'event': amount = Math.max(0, Math.min(200, data.amount | 0)); break;
     default: return { ok: false, error: 'bad reward' };
   }

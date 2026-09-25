@@ -202,6 +202,7 @@ export class RoomManager {
       case 'reward': {
         const kind = d.kind;
         if (kind === 'arrest') { const r = applyReward(c.profile, 'arrest', { fine: num(d.fine) }); c.dirtyProfile = true; c.wanted = 0; return { ...r, profile: c.profile }; }
+        if (kind === 'repair') { if (c.profile.money < 150) return { ok: false, error: 'Repairs cost $150' }; const r = applyReward(c.profile, 'repair'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'tip') { const r = applyReward(c.profile, 'tip'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'hospital') { const r = applyReward(c.profile, 'hospital'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'robbery') {
@@ -252,6 +253,7 @@ export class RoomManager {
       case 'profile': {
         if (m.name) c.name = clean(m.name, 18) || c.name;
         if (PLAYABLE.has(m.character)) c.character = m.character;
+        c.profile.name = c.name; c.profile.character = c.character; c.dirtyProfile = true;
         room?.broadcast({ t: 'playerMeta', id: c.id, name: c.name, character: c.character });
         return;
       }

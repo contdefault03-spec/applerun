@@ -139,6 +139,15 @@ export class NPCManager {
   pickWanderTarget(npc) {
     const p = npc.position;
     if (npc.interior) return null;
+    // sometimes pop into a nearby building (they disappear inside)
+    if (Math.random() < 0.06) {
+      const d = this.game.interiors?.nearestDoor(p.x, p.z, 25);
+      if (d) { npc.state = 'goto'; npc.after = 'wander'; npc.onArrive = () => { npc.gone = true; }; return (npc.target = new THREE.Vector3(d.x, 0, d.z)); }
+    }
+    // or take a seat on a bench
+    if (Math.random() < 0.1) {
+      for (const b of this.layout.props.benches) if (Math.hypot(b.x - p.x, b.z - p.z) < 25) { npc.state = 'goto'; npc.after = 'sit'; const bx = b.x, bz = b.z; npc.onArrive = () => { npc.heading = b.rot; npc.position.set(bx, 0.16, bz); npc.state = 'sit'; npc.timer = 15 + Math.random() * 30; }; return (npc.target = new THREE.Vector3(bx, 0, bz)); }
+    }
     const n = this.layout.roadIndex.nearest(p.x, p.z, 30);
     if (n && n.road.type !== 'highway') {
       const road = n.road;
@@ -305,7 +314,8 @@ export class NPCManager {
       for (let i = this.npcs.length - 1; i >= 0; i--) {
         const n = this.npcs[i];
         const d = n.position.distanceTo(pp);
-        if (d > 200 || (!n.alive && n.deadT > 40)) { this.remove(n); this.npcs.splice(i, 1); }
+        if (n.state === 'sit' && !n.fixed && n.timer <= 0) { n.state = 'wander'; n.position.x += Math.sin(n.heading) * 0.8; n.position.z += Math.cos(n.heading) * 0.8; }
+        if (d > 200 || n.gone || (!n.alive && n.deadT > 40)) { this.remove(n); this.npcs.splice(i, 1); }
       }
       this.spawnT -= dt;
       if (this.spawnT < 0 && this.npcs.length < this.target) { this.spawnT = 0.25; const n = this.spawnAround(pp); if (n) this.npcs.push(n); }

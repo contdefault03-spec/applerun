@@ -295,7 +295,8 @@ export class UIManager {
     const g = this.game;
     const room = g.net.room;
     this.modal('Paused', h('div.col',
-      room ? h('div.panel', { style: { padding: '12px 14px' } }, h('div.muted', 'Room code'), h('div', { style: { fontFamily: 'var(--display)', fontSize: '44px', letterSpacing: '.2em' } }, room.code), h('div.muted', { style: { fontSize: '12px' } }, `${room.kind === 'world' ? 'Free roam' : room.mode} · ${room.private ? 'private' : 'public'} · share this code with friends`)) : h('div.muted', 'Solo session (not connected to a room)'),
+      room ? h('div.panel', { style: { padding: '12px 14px' } }, h('div.muted', 'Room code'), h('div', { style: { fontFamily: 'var(--display)', fontSize: '44px', letterSpacing: '.2em' } }, room.code), h('div.muted', { style: { fontSize: '12px' } }, `${room.kind === 'world' ? 'Free roam' : room.mode} · ${room.private ? 'private' : 'public'} · share this code with friends`),
+        h('button.btn.small', { style: { marginTop: '8px' }, onclick: async (e) => { const url = `${location.origin}${location.pathname}?room=${room.code}`; try { await navigator.clipboard.writeText(url); e.target.textContent = 'Invite link copied!'; } catch { e.target.textContent = url; } } }, 'Copy invite link')) : h('div.muted', 'Solo session (not connected to a room)'),
       h('button.btn.primary', { onclick: () => { this.closeModal(); g.resume(); } }, 'Resume'),
       h('button.btn', { onclick: () => { this.closeModal(); this.showCharacterSelect(() => g.resume(), { confirmLabel: 'Play as this character' }); } }, 'Change character'),
       h('button.btn', { onclick: () => this.showSettings() }, 'Settings'),

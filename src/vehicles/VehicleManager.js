@@ -280,6 +280,7 @@ export class VehicleManager {
       if (veh.destroyed && Math.random() < dt * 10) g.fx?.fire(veh.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, veh.spec.height * 0.6, (Math.random() - 0.5) * 2)));
     }
     if (this.current?.isDriver) g.player.speed = Math.abs(this.current.speed);
+    this.updateHeadlights();
   }
 
   hitPedestrians(v) {
@@ -345,6 +346,39 @@ export class VehicleManager {
     const rpm = Math.min(1, Math.abs(v.speed) / v.spec.maxSpeed);
     v.engine.update(v.position, rpm, Math.abs(v.throttle), v.skid);
     v.sirenSound?.update(v.position);
+  }
+
+  onUse(u) {
+    if (u.kind !== 'repair') return false;
+    const g = this.game;
+    const v = this.lastOwned ? this.vehicles.get(this.lastOwned) : null;
+    const st = this.lastOwned ? this.states.get(this.lastOwned) : null;
+    if (!st) { g.ui.notify('Drive a car here first — we repair the last car you drove.', 'info'); return true; }
+    g.net.request('reward', { kind: 'repair' }).then((r) => {
+      if (!r.ok && g.net.connected) return g.ui.notify(r.error || 'Repair failed', 'bad');
+      if (r.profile) g.setProfile(r.profile);
+      st.dmg = 0;
+      if (v) { v.dmg = 0; if (v.destroyed) { v.destroyed = false; this.removeVehicle(v); this.instantiate(this.lastOwned); } }
+      g.audio.cash(); g.ui.notify('Your car is repaired and good as new. (-$150)', 'good');
+    });
+    return true;
+  }
+  updateHeadlights() {
+    const g = this.game;
+    const v = this.current;
+    const night = g.world.env.nightFactor;
+    if (!this.headlights) {
+      this.headlights = [0, 1].map(() => { const l = new THREE.SpotLight('#fff4d6', 0, 70, 0.45, 0.5, 1.2); l.castShadow = false; g.engine.scene.add(l, l.target); return l; });
+    }
+    for (const [i, l] of this.headlights.entries()) {
+      if (!v || v.spec.bike && i === 1) { l.intensity = 0; continue; }
+      const on = night > 0.4 || v.lightsOn;
+      l.intensity = on ? 180 : 0;
+      const side = v.spec.bike ? 0 : i ? -0.6 : 0.6;
+      const f = v.forward(), lf = v.left();
+      l.position.copy(v.position).addScaledVector(f, v.spec.length / 2).addScaledVector(lf, side).add(new THREE.Vector3(0, 0.8, 0));
+      l.target.position.copy(l.position).addScaledVector(f, 20).add(new THREE.Vector3(0, -2, 0));
+    }
   }
 
   blips(out) {
