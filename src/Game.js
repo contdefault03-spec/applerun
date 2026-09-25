@@ -31,6 +31,7 @@ import { Emergency } from './systems/Emergency.js';
 import { Events } from './systems/Events.js';
 import { FishingMission } from './systems/FishingMission.js';
 import { AdminMenu } from './systems/AdminMenu.js';
+import { ATMs } from './systems/ATMs.js';
 import { ActivityManager } from './activities/ActivityManager.js';
 import { VoiceChat } from './net/VoiceChat.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
@@ -89,6 +90,7 @@ export class Game {
     this.events = this.addSystem(new Events(this));
     this.fishing = this.addSystem(new FishingMission(this));
     this.admin = new AdminMenu(this);
+    this.atms = this.addSystem(new ATMs(this));
     this.dialogue = new Dialogue(this);
     progress(0.9, 'Dressing up the citizens of Applerun…');
     await this.npcs.prebuild();
@@ -333,6 +335,39 @@ export class Game {
       case 'tv': u.target && (u.target.material.emissiveIntensity = u.target.material.emissiveIntensity > 0.1 ? 0 : 0.6); break;
       case 'light': this.interiors.toggleLights(it); break;
       case 'computer': r(['You check the Applerun news: "Gorilla in tech fleece spotted downtown."', 'You scroll memes for 10 minutes.', 'Stock tip: invest in umbrella hats.'][Math.floor(Math.random() * 3)], 'info'); break;
+      case 'dolma': {
+        if (this.profile.money < 12) return r('A dolma costs $12.', 'bad');
+        if (it?.dolmaMesh && !it.dolmaMesh.visible) return r('Out of dolma right now — wait for a new batch.', 'bad');
+        const res = await this.net.request('reward', { kind: 'dolma' });
+        if (res.ok === false) return r(res.error || "Can't buy that right now.", 'bad');
+        if (res.profile) this.setProfile(res.profile);
+        this.setHealth(Math.min(100, this.player.health + 20));
+        this.avatar.anim.play('interact');
+        if (it?.dolmaMesh) { it.dolmaMesh.visible = false; it.dolmaRespawnT = 15; }
+        r('You buy and eat a dolma. Delicious. (+20 health)');
+        break;
+      }
+      case 'grocery': {
+        if (this.profile.money < 8) return r('Groceries cost $8.', 'bad');
+        const res = await this.net.request('reward', { kind: 'grocery' });
+        if (res.ok === false) return r(res.error || "Can't buy that right now.", 'bad');
+        if (res.profile) this.setProfile(res.profile);
+        this.setHealth(Math.min(100, this.player.health + 20));
+        this.avatar.anim.play('interact');
+        r('Bought groceries. (+20 health)');
+        break;
+      }
+      case 'haircut': r('Fresh trim. Looking good — no gameplay effect, just style points.', 'good'); this.avatar.anim.play('interact'); break;
+      case 'atm': r(`Balance: $${this.profile.money.toLocaleString()}`, 'info'); break;
+      case 'arcade': {
+        if (this.profile.money < 5) return r('A game costs $5.', 'bad');
+        const res = await this.net.request('reward', { kind: 'arcade' });
+        if (res.ok === false) return r(res.error || 'Too soon — try again in a moment.', 'bad');
+        if (res.profile) this.setProfile(res.profile);
+        this.avatar.anim.play('interact');
+        r(res.amount > 0 ? `High score! Net +$${res.amount}.` : res.amount < 0 ? `Game over. Net -$${-res.amount}.` : 'Broke even.');
+        break;
+      }
       case 'rob': {
         this.avatar.anim.play('interact');
         const res = await this.net.request('reward', { kind: 'robbery' });

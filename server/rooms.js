@@ -223,6 +223,18 @@ export class RoomManager {
         if (kind === 'tip') { const r = applyReward(c.profile, 'tip'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'hospital') { const r = applyReward(c.profile, 'hospital'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'hotel') { if (c.profile.money < 60) return { ok: false, error: 'A room costs $60' }; const r = applyReward(c.profile, 'hotel'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
+        if (kind === 'dolma') { if (c.profile.money < 12) return { ok: false, error: 'A dolma costs $12' }; const r = applyReward(c.profile, 'dolma'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
+        if (kind === 'grocery') { if (c.profile.money < 8) return { ok: false, error: 'Groceries cost $8' }; const r = applyReward(c.profile, 'grocery'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
+        if (kind === 'movieTicket') { if (c.profile.money < 10) return { ok: false, error: 'A ticket costs $10' }; const r = applyReward(c.profile, 'movieTicket'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
+        if (kind === 'arcade') {
+          if (c.profile.money < 5) return { ok: false, error: 'A game costs $5' };
+          c.rewardAt ??= {};
+          if (now() - (c.rewardAt.arcade || 0) < 3000) return { ok: false, error: 'Too soon' };
+          c.rewardAt.arcade = now();
+          const r = applyReward(c.profile, 'arcade', { amount: -5 + Math.floor(Math.random() * 21) }); // -5..+15
+          c.dirtyProfile = true;
+          return { ...r, profile: c.profile };
+        }
         if (kind === 'robbery') {
           const bid = interiorAt(c.state.x, c.state.z);
           const b = bid !== null ? layout.buildings[bid] : null;

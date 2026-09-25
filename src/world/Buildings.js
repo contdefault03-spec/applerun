@@ -8,6 +8,7 @@ export const TYPE_STYLE = {
   house: 'house', villa: 'villa', beach_house: 'villa', safehouse: 'villa', rough_apartment: 'rough', rough_house: 'rough',
   brick_apartment: 'brick', warehouse: 'warehouse', factory: 'warehouse', farmhouse: 'house', cabin: 'cabin', gym: 'warehouse',
   police: 'office', hospital: 'apartment', gunstore: 'shop', taxi_depot: 'shop', garage: 'warehouse', hotel: 'apartment',
+  clinic: 'apartment', dentist: 'shop', pharmacy: 'shop', supermarket: 'shop', barber: 'shop', bank: 'office', arcade: 'rough', cinema: 'office', concert: 'office',
 };
 const PITCHED = new Set(['house', 'farmhouse', 'cabin', 'safehouse', 'rough_house']);
 const SIGNS = {
@@ -17,6 +18,11 @@ const SIGNS = {
   clothing: ['THREADS', '#6a1b9a', '#ffffff'], shop: ['24/7 MART', '#1b5e20', '#ffffff'], safehouse: ['SAFEHOUSE', '#37474f', '#80cbc4'],
   nightclub: ['NEON CLUB', '#170022', '#ff2fd6'],
   hotel: ['SEABREEZE HOTEL', '#0d3b4a', '#ffd77a'],
+  clinic: ['APPLERUN CLINIC', '#ffffff', '#00897b'], dentist: ['BRIGHT SMILE DENTAL', '#ffffff', '#4fc3f7'],
+  pharmacy: ['CITY PHARMACY', '#ffffff', '#2e7d32'], supermarket: ['FRESH MART', '#c62828', '#ffffff'],
+  barber: ['SHARP CUTS BARBER', '#1b1b1b', '#ff8f00'], bank: ['APPLERUN TRUST BANK', '#0d3b2e', '#d4af37'],
+  arcade: ['PIXEL PALACE ARCADE', '#1a0033', '#00e5ff'], cinema: ['STARLIGHT CINEMA', '#1a0033', '#ffd700'],
+  concert: ['THE ROOST CONCERT HALL', '#0a0a1a', '#ff2fd6'],
 };
 export const SPECIAL_TINT = { police: '#9fb4e0', hospital: '#ffffff', gunstore: '#8d8d8d', gym: '#9e9e9e' };
 // Pastel paint colours for houses/villas (multiplied over the light render/siding wall texture).

@@ -201,6 +201,16 @@ export function buildProps() {
   group.add(instanced(fenceGeo, M('#e8e4da'), fenceItems, (o, f) => { o.position.set(f.x, f.y, f.z); o.rotation.set(0, f.rot, 0); o.scale.set(f.len, 1, 1); }, false));
   for (const f of fenceItems) colliders.push({ kind: 'small', x: f.x + Math.sin(f.rot) * f.len / 2, z: f.z + Math.cos(f.rot) * f.len / 2, hx: Math.abs(Math.sin(f.rot)) * f.len / 2 + 0.1, hz: Math.abs(Math.cos(f.rot)) * f.len / 2 + 0.1, rot: 0, y0: f.y - 1, y1: f.y + 1 });
 
+  // ATMs (a wall-mounted-looking box with a lit screen) outside banks and some shops
+  const atmMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.3 });
+  const atmGeo = mergeGeometries([
+    part(new THREE.BoxGeometry(0.6, 1.3, 0.35), '#37474f', 0, 0.65, 0),
+    part(new THREE.BoxGeometry(0.4, 0.28, 0.02), '#1b5e20', 0, 0.95, 0.18),
+  ]);
+  const atmItems = (P.atms || []).map((a) => ({ ...a, y: y(a.x, a.z) + 0.14 }));
+  group.add(instanced(atmGeo, atmMat, atmItems, (o, a) => { o.position.set(a.x, a.y, a.z); o.rotation.set(0, a.rot, 0); o.scale.setScalar(1); }));
+  for (const a of atmItems) colliders.push({ kind: 'small', x: a.x, z: a.z, hx: 0.3, hz: 0.2, rot: a.rot, y0: -1, y1: a.y + 1.3 });
+
   return { group, colliders, lampItems, trafficLights: tl, trafficHeads: tlHeads };
 }
 

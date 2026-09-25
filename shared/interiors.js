@@ -25,5 +25,6 @@ export const INTERIOR_TYPE = {
   apartment: 'apartment', rough_apartment: 'apartment', brick_apartment: 'apartment', tower: 'office', office: 'office',
   shop: 'shop', clothing: 'shop', cafe: 'restaurant', restaurant: 'restaurant', bar: 'bar', nightclub: 'nightclub',
   gunstore: 'gunstore', police: 'police', hospital: 'hospital', gym: 'gym', garage: 'garage', taxi_depot: 'garage', warehouse: 'warehouse', factory: 'warehouse', hotel: 'hotel',
+  clinic: 'clinic', dentist: 'dentist', pharmacy: 'pharmacy', supermarket: 'supermarket', barber: 'barber', bank: 'bank', arcade: 'arcade', cinema: 'cinema', concert: 'concert',
 };
 export const RESIDENTIAL = new Set(['house', 'apartment', 'safehouse']);

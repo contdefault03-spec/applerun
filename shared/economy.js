@@ -59,6 +59,10 @@ export function applyReward(p, kind, data = {}) {
     case 'repair': amount = -Math.min(p.money, 150); break;
     case 'event': amount = Math.max(0, Math.min(200, data.amount | 0)); break;
     case 'fishing': amount = data.role === 'ajan' ? 25000 : 20000; break;
+    case 'dolma': amount = -Math.min(p.money, 12); break;
+    case 'grocery': amount = -Math.min(p.money, 8); break;
+    case 'arcade': amount = Math.max(-15, Math.min(15, Math.round(data.amount || 0))); break;
+    case 'movieTicket': amount = -Math.min(p.money, 10); break;
     default: return { ok: false, error: 'bad reward' };
   }
   p.money = Math.max(0, p.money + amount);

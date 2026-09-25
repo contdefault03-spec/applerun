@@ -428,6 +428,15 @@ function buildLayout() {
   assign('police2', 900, 610, 'police');
   assign('safehouse', 360, 300, 'safehouse', ['house', 'villa']);
   assign('hotel', 220, 500, 'hotel', ['apartment', 'beach_house']);
+  assign('clinic', 350, 560, 'clinic');
+  assign('dentist', 380, 590, 'dentist');
+  assign('pharmacy', 400, 540, 'pharmacy');
+  assign('supermarket', 320, 480, 'supermarket');
+  assign('barber', 450, 570, 'barber');
+  assign('bank', 470, 500, 'bank');
+  assign('arcade', 240, 560, 'arcade');
+  assign('cinema', 300, 500, 'cinema');
+  assign('concert', 480, 460, 'concert');
 
   // --- Doors
   for (const b of buildings) {
@@ -667,7 +676,7 @@ function addLandmarkColliders(L, colliders) {
 // ---------------------------------------------------------------- props
 function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, graph) {
   const trees = [], palms = [], lamps = [], benches = [], lights = [], containers = [], cranes = [], boats = [], rocks = [], hydrants = [], bins = [], graffiti = [], fences = [];
-  const bollards = [], bikeRacks = [], busStops = [], signs = [];
+  const bollards = [], bikeRacks = [], busStops = [], signs = [], atms = [];
   // Street lamps along roads
   for (const r of roads) {
     const t = ROAD_TYPES[r.type];
@@ -804,6 +813,16 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, grap
       const [px, py] = toPx(x, z);
       if (!isWaterPx(px, py)) bikeRacks.push({ x, z, rot: b.rot });
     }
+    // ATMs: outside banks always, and occasionally outside other commercial buildings
+    const atmChance = b.type === 'bank' ? 1 : ['shop', 'clothing', 'cafe', 'restaurant', 'supermarket'].includes(b.type) ? 0.12 : 0;
+    if (rand() < atmChance) {
+      const [fx, fz] = b.face;
+      const c2 = Math.cos(b.rot), s2 = Math.sin(b.rot);
+      const lx2 = fx * (b.hx + 1.3) - fz * 1.5, lz2 = fz * (b.hz + 1.3) + fx * 1.5;
+      const x2 = b.x + lx2 * c2 + lz2 * s2, z2 = b.z - lx2 * s2 + lz2 * c2;
+      const [px2, py2] = toPx(x2, z2);
+      if (!isWaterPx(px2, py2)) atms.push({ x: x2, z: z2, rot: b.rot });
+    }
   }
   for (const n of graph.nodes) {
     if (n.edges.length < 3) continue;
@@ -852,7 +871,7 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, grap
       fences.push({ x1: ax, z1: az, x2: bx, z2: bz });
     }
   }
-  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants, bollards, bikeRacks, busStops, signs };
+  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants, bollards, bikeRacks, busStops, signs, atms };
 }
 function tryTreeFree(arr, x, z, rand) { arr.push({ x, z, s: 0.8 + rand() * 0.6, r: rand() * 6.28, v: rand() }); }
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { getLayout } from '../../shared/map/layout.js';
 import { interiorOrigin, INTERIOR_TYPE, RESIDENTIAL } from '../../shared/interiors.js';
 import { mulberry32 } from '../../shared/rng.js';
@@ -12,9 +13,14 @@ const NAMES = {
   house: 'House', apartment: 'Apartment', safehouse: 'Your Safehouse', office: 'Office', shop: '24/7 Mart', restaurant: 'Diner', bar: 'The Rusty Bar',
   gunstore: 'Applerun Guns', police: 'Police Station', hospital: 'Applerun General Hospital', gym: 'Iron Gym', garage: 'Garage', warehouse: 'Warehouse', dome: 'Applerun Dome',
   nightclub: 'Neon Club', hotel: 'Seabreeze Hotel',
+  clinic: 'Applerun Clinic', dentist: 'Bright Smile Dental', pharmacy: 'City Pharmacy', supermarket: 'Fresh Mart',
+  barber: 'Sharp Cuts Barber', bank: 'Applerun Trust Bank', arcade: 'Pixel Palace Arcade',
+  cinema: 'Starlight Cinema', concert: 'The Roost Concert Hall',
 };
-const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'], nightclub: ['#170022', '#1c0b2e'], hotel: ['#f2ede0'] };
-const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e', nightclub: '#0e0616', hotel: '#c9a876' };
+const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'], nightclub: ['#170022', '#1c0b2e'], hotel: ['#f2ede0'],
+  clinic: ['#eaf6f4'], dentist: ['#eaf7fc'], pharmacy: ['#f0f8f0'], supermarket: ['#f7f7f7'], barber: ['#20222a'], bank: ['#e9e4d4'], arcade: ['#150826', '#1c0f33'], cinema: ['#160820'], concert: ['#0c0a16'] };
+const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e', nightclub: '#0e0616', hotel: '#c9a876',
+  clinic: '#d8ece8', dentist: '#d8eef7', pharmacy: '#dcefe0', supermarket: '#cfcfcf', barber: '#2a2c36', bank: '#8a7a4a', arcade: '#100620', cinema: '#2a0a1a', concert: '#151020' };
 
 export class InteriorManager {
   constructor(game) {
@@ -63,7 +69,8 @@ export class InteriorManager {
     g.position.set(o.x, 0, o.z);
     g.visible = false;
     this.game.engine.scene.add(g);
-    const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], nightclub: [20, 16], hotel: [20, 15], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28] }[type] || [12, 10];
+    const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], nightclub: [20, 16], hotel: [20, 15], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28],
+      clinic: [15, 11], dentist: [14, 11], pharmacy: [13, 10], supermarket: [18, 14], barber: [11, 9], bank: [16, 12], arcade: [16, 13], cinema: [22, 18], concert: [30, 24] }[type] || [12, 10];
     const [W, D] = size;
     const H = type === 'warehouse' || type === 'dome' ? 7 : type === 'gym' || type === 'garage' ? 5 : 3.2;
     const it = { bid, type, name: NAMES[type] || 'Building', group: g, origin: o, W, D, H, colliders: [], seats: [], uses: [], npcSpots: [], lights: [], residential: RESIDENTIAL.has(type) };
@@ -168,6 +175,19 @@ export class InteriorManager {
         it.npcSpots.push({ x: 0, z: -D / 2 + 0.8, role: 'shopkeeper', yaw: 0, fixed: true }, { x: -W / 2 + 2.5, z: 0.45, role: 'civilian', sit: true }, { x: W / 2 - 2.5, z: 3.95, role: 'civilian', sit: true });
         it.uses.push({ x: 0, z: -D / 2 + 2.6, kind: 'snack', label: bar ? 'Order a drink ($15)' : 'Order food ($15, +health)' });
         if (bar) it.uses.push({ x: W * 0.25, z: -D / 2 + 2.6, kind: 'rob', label: 'Rob the bar (crime!)' });
+        else {
+          // Dolma on the counter (supplied dolma.glb) — a real purchasable food item, not a snack shortcut
+          const dolmaGltf = this.game.assets.gltf('dolma');
+          if (dolmaGltf) {
+            const dolma = dolmaGltf.scene.clone(true);
+            const scale = 0.36 / Math.max(0.001, 0.98); // native model is ~1m across; shrink to plate size
+            dolma.scale.setScalar(scale);
+            dolma.position.set(-W * 0.2, 0.95, -D / 2 + 1.75);
+            g.add(dolma);
+            it.dolmaMesh = dolma;
+          }
+          it.uses.push({ x: -W * 0.2, z: -D / 2 + 2.6, kind: 'dolma', label: 'Buy a dolma ($12, +20 health)' });
+        }
         break;
       }
       case 'nightclub': {
@@ -212,6 +232,69 @@ export class InteriorManager {
           { x: W / 4, z: -D * 0.15 - 0.85, kind: 'snack', label: 'Order room service ($15, +health)' },
           { x: 0, z: D / 2 - 3.6, kind: 'hotelroom', label: 'Sleep & save (your room)' },
         );
+        break;
+      }
+      case 'clinic': case 'dentist': {
+        const dental = it.type === 'dentist';
+        place(Prefabs.counter(3, '#eceff1'), 0, -D / 2 + 2);
+        for (let i = 0; i < 3; i++) { place(Prefabs.chair(dental ? '#4fc3f7' : '#80cbc4'), -W / 2 + 1.5 + i * 1.6, -D / 2 + 3.6, Math.PI); }
+        place(Prefabs.hospitalBed(), W / 4, D / 4, 0);
+        place(Prefabs.bookshelf(), W / 2 - 0.3, -D / 2 + 2, -Math.PI / 2);
+        it.npcSpots.push({ x: 0, z: -D / 2 + 1.2, role: 'medic', yaw: 0, fixed: true, name: dental ? 'Dental Nurse' : 'Nurse' }, { x: -W / 2 + 1.5, z: -D / 2 + 3.6, role: 'civilian', sit: true });
+        it.uses.push({ x: 0, z: -D / 2 + 2.8, kind: 'heal', label: dental ? 'Get a checkup ($100, full health)' : 'Get treated ($100, full health)' });
+        break;
+      }
+      case 'pharmacy': {
+        for (let i = 0; i < 3; i++) place(Prefabs.shelf(W * 0.4, i), -W * 0.15, -D / 2 + 2 + i * 2);
+        place(Prefabs.counter(2.6, '#eceff1'), W / 2 - 2, D / 2 - 2.4, Math.PI / 2);
+        it.npcSpots.push({ x: W / 2 - 1.3, z: D / 2 - 2.4, role: 'medic', yaw: -Math.PI / 2, fixed: true, name: 'Pharmacist' });
+        it.uses.push({ x: W / 2 - 3.2, z: D / 2 - 2.4, kind: 'heal', label: 'Buy medicine ($100, full health)' });
+        break;
+      }
+      case 'supermarket': {
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) place(Prefabs.shelf(W * 0.32, i + j * 4), -W / 2 + 2.2 + i * (W - 4) / 3, -D / 2 + 2.5 + j * (D - 5), j ? Math.PI : 0);
+        place(Prefabs.counter(3.2, '#c62828'), W / 2 - 2.2, D / 2 - 1.6, Math.PI / 2);
+        it.npcSpots.push({ x: W / 2 - 1.2, z: D / 2 - 1.6, role: 'shopkeeper', yaw: -Math.PI / 2, fixed: true, name: 'Cashier' }, { x: 0, z: 0, role: 'civilian' });
+        it.uses.push({ x: W / 2 - 3.4, z: D / 2 - 1.6, kind: 'grocery', label: 'Buy groceries ($8, +health)' }, { x: W / 2 - 3.4, z: D / 2 - 2.6, kind: 'rob', label: 'Rob the till (crime!)' });
+        break;
+      }
+      case 'barber': {
+        for (let i = 0; i < 2; i++) {
+          const x = -W / 4 + i * W / 2;
+          place(Prefabs.armchair('#c62828'), x, -D / 2 + 2.5, 0);
+          const mirror = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.5), mat('#b0d8e0', { metalness: 0.5, roughness: 0.1 }));
+          mirror.position.set(x, 1.5, -D / 2 + 0.15); g.add(mirror);
+        }
+        place(Prefabs.bookshelf(), W / 2 - 0.3, D / 2 - 2, -Math.PI / 2);
+        it.npcSpots.push({ x: -W / 4, z: -D / 2 + 2.5, role: 'worker', name: 'Barber' });
+        it.uses.push({ x: 0, z: -D * 0.1, kind: 'haircut', label: 'Get a haircut ($15, just for fun)' });
+        break;
+      }
+      case 'bank': {
+        place(Prefabs.counter(W * 0.5, '#8a7a4a'), 0, -D / 2 + 2.4);
+        const vault = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 2.6, 16), mat('#455a64', { metalness: 0.7, roughness: 0.3 }));
+        vault.rotation.z = Math.PI / 2; vault.position.set(0, 1.3, D / 2 - 1.5); g.add(vault);
+        it.colliders.push({ x: 0, z: D / 2 - 1.5, hx: 1.3, hz: 1.3, h: 2.6 });
+        for (let i = 0; i < 2; i++) place(Prefabs.desk(), -W / 2 + 2.5 + i * 4, 0.5);
+        it.npcSpots.push({ x: 0, z: -D / 2 + 1.8, role: 'shopkeeper', yaw: 0, fixed: true, name: 'Bank Teller' }, { x: -W / 2 + 2.5, z: 0.5, role: 'civilian' });
+        it.uses.push({ x: 0, z: -D / 2 + 3.4, kind: 'atm', label: 'Check balance' });
+        break;
+      }
+      case 'arcade': {
+        const cabCols = ['#e91e63', '#00bcd4', '#ffc107', '#8bc34a', '#673ab7'];
+        let ci = 0;
+        for (let side = -1; side <= 1; side += 2) for (let i = 0; i < 4; i++) {
+          const x = side * (W / 2 - 0.6), z = -D / 2 + 2 + i * 2.2;
+          const cab = mergeGeometries([
+            new THREE.BoxGeometry(0.8, 1.9, 0.7).translate(0, 0.95, 0),
+            new THREE.BoxGeometry(0.6, 0.4, 0.05).translate(0, 1.5, side * -0.36),
+          ]);
+          const m = new THREE.Mesh(cab, mat(cabCols[ci % cabCols.length], { emissive: cabCols[ci % cabCols.length], emissiveIntensity: 0.3 }));
+          m.position.set(x, 0, z); m.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2; g.add(m); ci++;
+          it.colliders.push({ x, z, hx: 0.4, hz: 0.35, h: 1.9 });
+        }
+        it.npcSpots.push({ x: 0, z: 0, role: 'civilian' }, { x: -1.5, z: 1, role: 'civilian' });
+        it.uses.push({ x: 0, z: -D / 2 + 2, kind: 'arcade', label: 'Play a game ($5, small chance to win big)' });
         break;
       }
       case 'gunstore': {
@@ -319,7 +402,12 @@ export class InteriorManager {
   }
   update(dt) {
     const it = this.current;
-    if (!it || it.type !== 'nightclub') return;
+    if (!it) return;
+    if (it.dolmaMesh && !it.dolmaMesh.visible) {
+      it.dolmaRespawnT -= dt;
+      if (it.dolmaRespawnT <= 0) it.dolmaMesh.visible = true;
+    }
+    if (it.type !== 'nightclub') return;
     this.discoT += dt;
     const hue = (t) => new THREE.Color().setHSL((this.discoT * 0.15 + t) % 1, 0.9, 0.55);
     for (const d of it.discoTiles) d.mesh.material.emissive.copy(hue(d.phase * 0.1));
