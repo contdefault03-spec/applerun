@@ -98,10 +98,18 @@ export function getHeightfield() {
       }
     }
   }
-  // Landmark pads (flat, at 0)
+  // Landmark pads (flat, at sea level)
   for (const key of ['stadium', 'arena', 'dome', 'parkingStadium', 'parkingArena', 'containerYard', 'plazaPark', 'fountainPlaza', 'basketballCourtPark']) {
     const b = L.landmarks[key];
     for (let z = b.z - b.hz - 4; z <= b.z + b.hz + 4; z += CELL) for (let x = b.x - b.hx - 4; x <= b.x + b.hx + 4; x += CELL) stamp(x, z, 0, 1);
+  }
+  // Ski resort: a level plateau cut into the mountainside at whatever height it naturally sits
+  // at (not sea level, since it's near the peak)
+  {
+    const b = L.landmarks.resort;
+    const [cpx, cpy] = toPx(b.x, b.z);
+    const plateau = rawHeightPx(cpx, cpy);
+    for (let z = b.z - b.hz - 8; z <= b.z + b.hz + 8; z += CELL) for (let x = b.x - b.hx - 8; x <= b.x + b.hx + 8; x += CELL) stamp(x, z, plateau, 1);
   }
   for (let k = 0; k < h.length; k++) if (w[k] > 0) h[k] = h[k] + (tgt[k] - h[k]) * w[k];
   // island surroundings (after flattening so the border is continuous)

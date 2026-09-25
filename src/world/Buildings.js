@@ -7,7 +7,7 @@ export const TYPE_STYLE = {
   tower: 'glass', office: 'office', apartment: 'apartment', shop: 'shop', restaurant: 'shop', cafe: 'shop', bar: 'rough', nightclub: 'rough', clothing: 'shop',
   house: 'house', villa: 'villa', beach_house: 'villa', safehouse: 'villa', rough_apartment: 'rough', rough_house: 'rough',
   brick_apartment: 'brick', warehouse: 'warehouse', factory: 'warehouse', farmhouse: 'house', cabin: 'cabin', gym: 'warehouse',
-  police: 'office', hospital: 'apartment', gunstore: 'shop', taxi_depot: 'shop', garage: 'warehouse',
+  police: 'office', hospital: 'apartment', gunstore: 'shop', taxi_depot: 'shop', garage: 'warehouse', hotel: 'apartment',
 };
 const PITCHED = new Set(['house', 'farmhouse', 'cabin', 'safehouse', 'rough_house']);
 const SIGNS = {
@@ -16,6 +16,7 @@ const SIGNS = {
   cafe: ['CAFE LUNA', '#5d4037', '#ffe0b2'], restaurant: ['DINER', '#b71c1c', '#ffffff'], bar: ['THE RUSTY BAR', '#3e2723', '#ffca28'],
   clothing: ['THREADS', '#6a1b9a', '#ffffff'], shop: ['24/7 MART', '#1b5e20', '#ffffff'], safehouse: ['SAFEHOUSE', '#37474f', '#80cbc4'],
   nightclub: ['NEON CLUB', '#170022', '#ff2fd6'],
+  hotel: ['SEABREEZE HOTEL', '#0d3b4a', '#ffd77a'],
 };
 export const SPECIAL_TINT = { police: '#9fb4e0', hospital: '#ffffff', gunstore: '#8d8d8d', gym: '#9e9e9e' };
 // Pastel paint colours for houses/villas (multiplied over the light render/siding wall texture).

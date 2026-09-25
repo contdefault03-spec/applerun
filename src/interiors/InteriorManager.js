@@ -11,10 +11,10 @@ export const DOME_ID = 1000;
 const NAMES = {
   house: 'House', apartment: 'Apartment', safehouse: 'Your Safehouse', office: 'Office', shop: '24/7 Mart', restaurant: 'Diner', bar: 'The Rusty Bar',
   gunstore: 'Applerun Guns', police: 'Police Station', hospital: 'Applerun General Hospital', gym: 'Iron Gym', garage: 'Garage', warehouse: 'Warehouse', dome: 'Applerun Dome',
-  nightclub: 'Neon Club',
+  nightclub: 'Neon Club', hotel: 'Seabreeze Hotel',
 };
-const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'], nightclub: ['#170022', '#1c0b2e'] };
-const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e', nightclub: '#0e0616' };
+const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'], nightclub: ['#170022', '#1c0b2e'], hotel: ['#f2ede0'] };
+const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e', nightclub: '#0e0616', hotel: '#c9a876' };
 
 export class InteriorManager {
   constructor(game) {
@@ -63,7 +63,7 @@ export class InteriorManager {
     g.position.set(o.x, 0, o.z);
     g.visible = false;
     this.game.engine.scene.add(g);
-    const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], nightclub: [20, 16], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28] }[type] || [12, 10];
+    const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], nightclub: [20, 16], hotel: [20, 15], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28] }[type] || [12, 10];
     const [W, D] = size;
     const H = type === 'warehouse' || type === 'dome' ? 7 : type === 'gym' || type === 'garage' ? 5 : 3.2;
     const it = { bid, type, name: NAMES[type] || 'Building', group: g, origin: o, W, D, H, colliders: [], seats: [], uses: [], npcSpots: [], lights: [], residential: RESIDENTIAL.has(type) };
@@ -193,6 +193,25 @@ export class InteriorManager {
         it.npcSpots.push({ x: -W / 2 + 1.6, z: D / 2 - 2, role: 'shopkeeper', yaw: Math.PI / 2, fixed: true, name: 'Bartender' });
         for (let i = 0; i < 5; i++) it.npcSpots.push({ x: (Math.sin(i * 2.1) * tileN * 0.6), z: 1.5 + Math.cos(i * 1.7) * tileN * 0.6, role: 'civilian', name: 'Patron' });
         it.uses.push({ x: -W / 2 + 2.2, z: D / 2 - 2, kind: 'snack', label: 'Order a drink ($15)' });
+        break;
+      }
+      case 'hotel': {
+        // Reception (front), small restaurant corner (front-right), a decorated room (back)
+        partition(0, -D / 2 + D * 0.42, W, 0.2, W * 0.3, 1.4);
+        place(Prefabs.counter(3.4, '#5d4037'), -W / 4, -D / 2 + 1.6);
+        place(Prefabs.plant(), -W / 2 + 1, -D / 2 + 1);
+        place(Prefabs.sofa('#8d6e63'), W / 2 - 2, -D / 2 + 1.6, Math.PI);
+        for (let i = 0; i < 3; i++) { const x = W / 4 - 2 + i * 2, z = -D * 0.15; place(Prefabs.table(1, 1, '#a1887f'), x, z); place(Prefabs.chair(), x, z + 0.85, Math.PI); place(Prefabs.chair(), x, z - 0.85, 0); }
+        place(Prefabs.bed('#5c6bc0'), 0, D / 2 - 2.6, Math.PI);
+        place(Prefabs.lamp(), -W / 2 + 1, D / 2 - 1);
+        place(Prefabs.plant(), W / 2 - 1, D / 2 - 1);
+        place(Prefabs.bookshelf(), W / 2 - 0.3, D / 2 - 4, -Math.PI / 2);
+        it.npcSpots.push({ x: -W / 4, z: -D / 2 + 1.6, role: 'shopkeeper', yaw: 0, fixed: true, name: 'Receptionist' }, { x: W / 2 - 2, z: -D / 2 + 1.9, role: 'civilian', sit: true });
+        it.uses.push(
+          { x: -W / 4, z: -D / 2 + 3.2, kind: 'hotelCheckin', label: 'Check in ($60, a room for the night)' },
+          { x: W / 4, z: -D * 0.15 - 0.85, kind: 'snack', label: 'Order room service ($15, +health)' },
+          { x: 0, z: D / 2 - 3.6, kind: 'hotelroom', label: 'Sleep & save (your room)' },
+        );
         break;
       }
       case 'gunstore': {

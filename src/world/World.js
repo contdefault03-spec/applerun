@@ -63,8 +63,9 @@ export class World {
     const lmk = await step('Building landmarks…', () => buildLandmarks());
     this.outdoor.add(lmk);
     lmk.traverse((o) => { if (o.userData.ferris) this.ferris = o; if (o.userData.spin) this.animated.push(o); if (o.userData.lamp) this.env.lampMaterials.push(o.material); });
+    this.skilifts = lmk.userData.skilifts || [];
     // static landmark parts → a few merged meshes per material and area (far fewer draw calls)
-    this.mergeStats = mergeStatic(lmk, { keep: (o) => o.userData.ferris || o.userData.spin || o.userData.keep });
+    this.mergeStats = mergeStatic(lmk, { keep: (o) => o.userData.ferris || o.userData.spin || o.userData.keep || o.userData.skilift });
     const props = await step('Planting trees…', () => buildProps());
     props.group.traverse((o) => { if (o.isInstancedMesh) o.layers.set(LAYER.MID); });
     this.outdoor.add(props.group);
@@ -99,6 +100,14 @@ export class World {
       for (const c of this.ferris.children) if (c.userData.cabin !== undefined) c.rotation.x = -this.ferris.rotation.x;
     }
     for (const a of this.animated) a.rotation.y += dt;
+    if (this.skilifts?.length) {
+      this.liftT = (this.liftT || 0) + dt * 0.06;
+      for (const cab of this.skilifts) {
+        const { a, b, phase } = cab.userData.skilift;
+        const t = Math.abs((((this.liftT + phase) % 2) - 1)); // ping-pong 0..1..0
+        cab.position.lerpVectors(a, b, t);
+      }
+    }
   }
 
   setOutdoorVisible(v) { this.outdoor.visible = v; this.env.sky.mesh.visible = v; }

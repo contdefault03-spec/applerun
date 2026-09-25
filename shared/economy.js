@@ -50,6 +50,7 @@ export function applyReward(p, kind, data = {}) {
     case 'wrestlingWin': amount = 200; p.stats.wrestlingWins++; break;
     case 'death': amount = 0; p.stats.deaths++; break;
     case 'hospital': amount = -Math.min(p.money, 200); break;
+    case 'hotel': amount = -Math.min(p.money, 60); break;
     case 'arrest': amount = -Math.min(p.money, Math.max(0, Math.min(LIMITS.wantedFineMax, data.fine | 0))); p.stats.arrests++; break;
     case 'robbery': amount = Math.max(0, Math.min(600, data.amount | 0)); break;
     case 'police': amount = Math.max(0, Math.min(300, data.amount | 0)); break;

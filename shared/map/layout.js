@@ -248,6 +248,7 @@ function buildLayout() {
   lm('pier', 172, 543, 160, 11);
   lm('pierEnd', 102, 543, 22, 30);
   lm('plazaPark', 328, 468, 38, 38);
+  lm('resort', 748, 145, 55, 42);
   lm('fountainPlaza', 282, 468, 34, 38);
   lm('field', 290, 125, 80, 70);
   lm('basketballCourtPark', 540, 470, 26, 16);
@@ -426,6 +427,7 @@ function buildLayout() {
   assign('clothing', 420, 520, 'clothing');
   assign('police2', 900, 610, 'police');
   assign('safehouse', 360, 300, 'safehouse', ['house', 'villa']);
+  assign('hotel', 220, 500, 'hotel', ['apartment', 'beach_house']);
 
   // --- Doors
   for (const b of buildings) {

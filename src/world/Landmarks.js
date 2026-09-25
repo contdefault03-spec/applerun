@@ -207,6 +207,45 @@ export function buildLandmarks() {
     g.add(box(4, 3, 4, M('#f6f1e7'), e.x + 8, 2.4, e.z + 10), box(4.6, 0.3, 4.6, M('#e53935'), e.x + 8, 4.05, e.z + 10));
   }
 
+  // ---------------- Mountain ski resort: lodge + chairlift with moving cabins
+  {
+    const r = lm.resort;
+    const gy = heightAt(r.x, r.z);
+    const lodge = new THREE.Group();
+    const wood = M('#6d4c35', { roughness: 0.85 }), roofM = M('#3a3f44', { roughness: 0.7 }), glass = M('#bcd9e8', { roughness: 0.2, metalness: 0.2 });
+    lodge.add(box(20, 6, 14, wood, 0, 3, 0));
+    lodge.add(box(21, 0.6, 15, roofM, 0, 6.3, 0));
+    // simple gable cap
+    const gable = new THREE.Mesh(new THREE.CylinderGeometry(0, 8, 3, 4, 1), roofM);
+    gable.rotation.y = Math.PI / 4; gable.scale.set(1, 1, 15 / 11.4);
+    gable.position.set(0, 6.9, 0); gable.castShadow = true; lodge.add(gable);
+    for (let i = -1; i <= 1; i += 2) lodge.add(box(10, 2.4, 0.15, glass, i * 5, 3.6, 7.05));
+    lodge.add(box(1.6, 3, 0.2, M('#4e342e'), 0, 1.5, 7.05));
+    lodge.position.set(r.x, gy, r.z);
+    g.add(lodge);
+    // two lift towers + a chairlift line running up-slope, past the lodge
+    const towerA = { x: r.x - 10, z: r.z + 26 }, towerB = { x: r.x - 10, z: r.z - 40 };
+    const ay = heightAt(towerA.x, towerA.z), by = heightAt(towerB.x, towerB.z);
+    const towerH = 9;
+    g.add(box(0.6, towerH, 0.6, steel, towerA.x, ay + towerH / 2, towerA.z));
+    g.add(box(0.6, towerH, 0.6, steel, towerB.x, by + towerH / 2, towerB.z));
+    g.add(box(3, 0.15, 0.15, steel, towerA.x, ay + towerH, towerA.z));
+    g.add(box(3, 0.15, 0.15, steel, towerB.x, by + towerH, towerB.z));
+    const cabA = new THREE.Vector3(towerA.x, ay + towerH - 0.5, towerA.z);
+    const cabB = new THREE.Vector3(towerB.x, by + towerH - 0.5, towerB.z);
+    const cabinCol = ['#e53935', '#1e88e5', '#fdd835', '#43a047'];
+    const lifts = [];
+    for (let i = 0; i < 6; i++) {
+      const cab = box(1.1, 1.3, 1.1, M(cabinCol[i % cabinCol.length]), 0, 0, 0);
+      cab.userData.skilift = { a: cabA, b: cabB, phase: i / 6 };
+      g.add(cab);
+      lifts.push(cab);
+    }
+    g.userData.skilifts = lifts;
+    // a couple of groomed-looking snow mounds either side (visual only)
+    for (const [dx, dz] of [[14, 0], [-14, -5]]) { const mound = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 6), M('#f2f6fb')); mound.scale.y = 0.25; mound.position.set(r.x + dx, gy - 0.5, r.z + dz); mound.receiveShadow = true; g.add(mound); }
+  }
+
   // ---------------- Port: container yard, cranes, quay
   {
     const quay = box(220 * 1.2, 2, 6, darkConcrete, wx(895), heightAt(wx(895), wz(788)) - 0.5, wz(786));

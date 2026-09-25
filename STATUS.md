@@ -135,11 +135,9 @@ Never break existing gameplay or multiplayer.
   - Load interiors only when the player is near or inside.
   - Interior lights use `LightPool` (3 pooled lights); the nightclub reuses the same pool for its colour-cycling lights.
 
-### Stage 6: mountain ski resort and hotel
-- Near the top of the mountain, in the snowy area: a ski resort with a lodge, animated ski lifts (not necessarily rideable) and snowy slopes.
-- A hotel:
-  - a reception where you can check in (pay, get a room key), a lobby, a restaurant and decorated rooms;
-  - your checked-in room works as a safehouse (sleep, save).
+### Stage 6: mountain ski resort and hotel — done
+- **Ski resort:** a new `resort` landmark footprint (`shared/map/layout.js`) near the peak, with the terrain flattened to a plateau at its natural (non-sea-level) height (`shared/map/terrain.js`) so the lodge doesn't sit on a slope. `src/world/Landmarks.js` builds a wood-and-glass lodge, two lift towers, a cable, and 6 gondola cabins that ping-pong back and forth along it (`World.update`, `this.skilifts`) — visual only, not rideable, as the brief allows. Snowy slopes were already there from Stage 3's height/slope-blended snow.
+- **Hotel:** a `hotel` building (assigned near the pier/beachfront, `Buildings.js` sign "SEABREEZE HOTEL") with an interior (`InteriorManager.js`) combining a reception (pay $60 to check in, server-validated in `server/rooms.js` / `shared/economy.js` like the hospital/repair rewards), a small restaurant corner (buy room service for health) and a decorated room. The room's "sleep & save" interaction only works once checked in (`Game.js` `hotelCheckin`/`hotelroom`); the "room key" is a session flag (`game.hotelCheckedIn`), not a persisted item.
 
 ### Stage 7: cars
 - Replace the box cars with realistic models:

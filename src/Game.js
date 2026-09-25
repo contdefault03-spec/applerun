@@ -303,6 +303,21 @@ export class Game {
         break;
       }
       case 'save': this.setHealth(100); this.world.env.setTime((this.world.env.time + 8) % 24); r('You slept 8 hours. Progress saved, health restored.'); break;
+      case 'hotelCheckin': {
+        if (this.profile.money < 60) return r('A room costs $60.', 'bad');
+        const res = await this.net.request('reward', { kind: 'hotel' });
+        if (res.ok === false) return r(res.error || "Can't check in right now.", 'bad');
+        if (res.profile) this.setProfile(res.profile);
+        this.hotelCheckedIn = true;
+        r("You're checked in. Your room is ready upstairs.");
+        break;
+      }
+      case 'hotelroom': {
+        if (!this.hotelCheckedIn) return r('Check in at reception first.', 'bad');
+        this.setHealth(100); this.world.env.setTime((this.world.env.time + 8) % 24);
+        r('You slept in your hotel room. Progress saved, health restored.');
+        break;
+      }
       case 'workout': this.avatar.anim.play('flex'); this.player.stamina = 100; r('Feel the burn! Stamina maxed.'); break;
       case 'tv': u.target && (u.target.material.emissiveIntensity = u.target.material.emissiveIntensity > 0.1 ? 0 : 0.6); break;
       case 'light': this.interiors.toggleLights(it); break;

@@ -205,6 +205,7 @@ export class RoomManager {
         if (kind === 'repair') { if (c.profile.money < 150) return { ok: false, error: 'Repairs cost $150' }; const r = applyReward(c.profile, 'repair'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'tip') { const r = applyReward(c.profile, 'tip'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'hospital') { const r = applyReward(c.profile, 'hospital'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
+        if (kind === 'hotel') { if (c.profile.money < 60) return { ok: false, error: 'A room costs $60' }; const r = applyReward(c.profile, 'hotel'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'robbery') {
           const bid = interiorAt(c.state.x, c.state.z);
           const b = bid !== null ? layout.buildings[bid] : null;
