@@ -128,7 +128,7 @@ export class NPC {
           this.timer = 6 + Math.random() * 8;
           if (Math.random() < 0.15) { this.state = 'idle'; this.timer = 2 + Math.random() * 5; this.target = null; }
         }
-        if (this.target) { want = this.target; speed = this.prof.walk; }
+        if (this.target) { want = this.target; speed = this.jogger ? this.prof.run : this.prof.walk; }
         break;
       case 'talkPlayer':
         face = Math.atan2(ctx.player.x - pos.x, ctx.player.z - pos.z);

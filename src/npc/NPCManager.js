@@ -23,6 +23,24 @@ const ROLE_MIX = {
 const DENSITY = { downtown: 1, midtown: 0.9, beachfront: 0.9, eastside: 0.8, redbrick: 0.7, sports: 0.7, hillcrest: 0.5, industrial: 0.45, northshore: 0.3, outskirts: 0.25, mountain: 0.2 };
 export const VARIANTS = { civilian: 8, police: 2, gang: 3, junkie: 2, shopkeeper: 2, medic: 1, worker: 2, athlete: 2, teamA: 2, teamB: 2, wrestler: 3 };
 
+// Park life (Stage 8): a simple procedural dog, attached to some civilian NPCs spawned near a
+// park so they read as "dog walkers" — it inherits the owner's avatar transform (child of
+// avatar.group) so it turns and moves with them without any extra per-frame logic.
+const DOG_COLORS = ['#8d6e4f', '#3b2e1f', '#e8d9b5', '#2b2b2b', '#c9c0a8'];
+function buildDog(color) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.5), m); body.position.set(0.35, 0.22, -0.9); g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.18), m); head.position.set(0.35, 0.28, -1.18); g.add(head);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.2), m); tail.position.set(0.35, 0.3, -0.63); tail.rotation.x = -0.6; g.add(tail);
+  for (const [dx, dz] of [[-0.08, -0.78], [0.08, -0.78], [-0.08, -1.02], [0.08, -1.02]]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.06), m); leg.position.set(0.35 + dx, 0.1, dz); g.add(leg);
+  }
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  g.userData.dog = true;
+  return g;
+}
+
 export class NPCManager {
   constructor(game) {
     this.game = game;
@@ -92,6 +110,16 @@ export class NPCManager {
       const variant = Math.floor(Math.random() * (VARIANTS[role === 'resident' ? 'civilian' : role] || 1));
       test.y = col.groundAt(x, z);
       const npc = new NPC(this, { role, variant, identity, x, y: test.y, z, yaw: Math.atan2(tx * side, tz * side) });
+      // Park life: near the plaza park, some civilians walk a dog and some athletes jog instead
+      // of the normal city amble — gives parks a different feel from ordinary streets.
+      const park = this.layout.landmarks.plazaPark;
+      if (park && Math.hypot(x - park.x, z - park.z) < Math.max(park.hx, park.hz) + 30) {
+        if (role === 'civilian' || role === 'athlete') {
+          const roll = Math.random();
+          if (roll < 0.2) npc.avatar.group.add(buildDog(DOG_COLORS[Math.floor(Math.random() * DOG_COLORS.length)]));
+          else if (roll < 0.4) npc.jogger = true;
+        }
+      }
       return this.add(npc);
     }
     return null;
