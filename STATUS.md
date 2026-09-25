@@ -184,10 +184,9 @@ Never break existing gameplay or multiplayer.
 - **Smarter AI — already mostly in place before this pass** (found, not newly built): `stepAI` already picks a single chaser per team (not everyone piling on the ball), holds off-ball players in shape shifted toward the ball, pushes forwards up to make runs, has the keeper commit out of the box when the ball is close and deep in their third, and already scores passes by teammate advancement + how open they are before choosing to pass, dribble or shoot. Not changed further this pass.
 - Notes: `shared/sports/football.js` (runs on the server for rooms, locally for solo).
 
-### Stage 12: basketball upgrade
-- The same smarter AI: off-ball players cut, space the floor and get open for passes.
-- Defenders stick to their man; better rebounding and passing decisions.
-- Nobody swarms the ball.
+### Stage 12: basketball upgrade — already largely done, checked not changed
+- `shared/sports/basketball.js`'s AI was already in the shape this stage asks for: man-to-man marking (each defender is assigned one opponent, `mates.indexOf(p) % opp.length`, and stands between them and their own basket), a single ball-side offensive spacing pattern (not everyone crowding the rim), a shoot-vs-pass decision based on defender distance, and steals attempted only by the player actually marking the ball-handler — so nobody swarms the ball. Rebounds go to whoever is nearest when the ball is loose under the rim, which is a fair simplification of "better rebounding" without new jump/box-out logic. Verified with a scripted 60 s run (both teams score, no errors).
+- **Not changed:** off-ball spacing spots are fixed positions rather than dynamic cuts/movement to lose a defender — genuinely "cutting" AI (reading defender position and timing a run into open space) would be new logic, not present here or in the football sim it mirrors. Left as-is given the size of the remaining stages.
 - Notes: `shared/sports/basketball.js`.
 
 ### Stage 13: maps
