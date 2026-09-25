@@ -464,6 +464,12 @@ export class Game {
     const ocean = Math.max(0, 1 - Math.max(0, px - 180) / 120);
     const wind = Math.min(1, Math.max(0, this.player.pos.y - 20) / 60);
     this.audio.setAmbience({ city: this.player.interior ? 0.1 : city, ocean: this.player.interior ? 0 : ocean, wind, dt });
+    // Pier party: a small always-on-when-close ambient beat at the end of the pier, gated by
+    // distance so it doesn't run (or cost anything) when nobody's near it.
+    const pe = this.layout.landmarks.pierEnd;
+    const near = !this.player.interior && pe && Math.hypot(this.player.pos.x - pe.x, this.player.pos.z - pe.z) < 70;
+    if (near && !this.pierParty) this.pierParty = this.audio.clubBeat(() => ({ x: pe.x, y: 2, z: pe.z }), 110);
+    else if (!near && this.pierParty) { this.pierParty.stop(); this.pierParty = null; }
   }
 
   hudState() {

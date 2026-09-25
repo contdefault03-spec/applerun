@@ -255,6 +255,25 @@ export function buildLandmarks() {
         g.add(stall);
       }
     }
+    // Party lights around the pier-end plaza (the "party at the end of the pier"): a few
+    // coloured bulbs on poles that cycle colour in World.update, matching the ferris wheel scale.
+    {
+      const partyLights = [];
+      const cols = ['#ff2fd6', '#4fc3f7', '#ffd23f', '#7cff6b'];
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const px = e.x - 2 + Math.cos(a) * 13, pz = e.z + Math.sin(a) * 13;
+        const pole = box(0.1, 4, 0.1, steel, px, heightAt(px, pz) + 2, pz, 0, false);
+        g.add(pole);
+        const bulbMat = M(cols[i % cols.length], { emissive: cols[i % cols.length], emissiveIntensity: 1.2 });
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), bulbMat);
+        bulb.position.set(px, heightAt(px, pz) + 4.1, pz);
+        bulb.userData.partyLight = true;
+        g.add(bulb);
+        partyLights.push(bulb);
+      }
+      g.userData.partyLights = partyLights;
+    }
   }
 
   // ---------------- Mountain ski resort: lodge + chairlift with moving cabins

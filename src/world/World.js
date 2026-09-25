@@ -65,8 +65,9 @@ export class World {
     lmk.traverse((o) => { if (o.userData.ferris) this.ferris = o; if (o.userData.spin) this.animated.push(o); if (o.userData.lamp) this.env.lampMaterials.push(o.material); });
     this.skilifts = lmk.userData.skilifts || [];
     this.coasterCars = lmk.userData.coasterCars || [];
+    this.partyLights = lmk.userData.partyLights || [];
     // static landmark parts → a few merged meshes per material and area (far fewer draw calls)
-    this.mergeStats = mergeStatic(lmk, { keep: (o) => o.userData.ferris || o.userData.spin || o.userData.keep || o.userData.skilift || o.userData.coaster });
+    this.mergeStats = mergeStatic(lmk, { keep: (o) => o.userData.ferris || o.userData.spin || o.userData.keep || o.userData.skilift || o.userData.coaster || o.userData.partyLight });
     const props = await step('Planting trees…', () => buildProps());
     props.group.traverse((o) => { if (o.isInstancedMesh) o.layers.set(LAYER.MID); });
     this.outdoor.add(props.group);
@@ -116,6 +117,13 @@ export class World {
         const t = (t0 + this.coasterT) % 1;
         car.position.copy(curve.getPointAt(t));
         car.lookAt(curve.getPointAt((t + 0.01) % 1));
+      }
+    }
+    if (this.partyLights?.length) {
+      this.partyT = (this.partyT || 0) + dt;
+      for (let i = 0; i < this.partyLights.length; i++) {
+        const hue = (this.partyT * 0.2 + i / this.partyLights.length) % 1;
+        this.partyLights[i].material.emissive.setHSL(hue, 0.9, 0.55);
       }
     }
   }
