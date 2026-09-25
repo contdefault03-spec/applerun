@@ -168,17 +168,14 @@ Never break existing gameplay or multiplayer.
   - Server rooms are in `server/rooms.js`; rewards go through `shared/economy.js` `reward` kinds.
   - The Khronos glTF sample `BarramundiFish` (CC0) could still be added as the tuna model for a future pass.
 
-### Stage 10: combat mode upgrade (CS2 style)
-- **Entrance:** army barracks somewhere on the map (or at the Industrial Yard).
-- **Arena map:**
-  - Starting a combat match temporarily teleports all participants to a separate small arena.
-  - A desert-town map inspired by classic Counter-Strike maps: sandy streets, tan walls, arches, crates, a mid lane, two bomb sites, long sightlines.
-  - It must be an original layout, not a copy of any real map.
-- **Buy menu and money:** a proper buy menu at round start, with temporary match-only money (starting cash, kill rewards, round win/loss bonuses).
-- **CS-style rules:** rounds, buy phase, freeze time, round timer, halftime side swap, first to N wins.
-- **Weapon feel:** recoil patterns, spread, headshots, armour and helmet purchases, and grenades if possible (HE, flash, smoke).
-- **Scoreboard:** on Tab, with kills, deaths, assists and money.
-- **After the match:** everyone returns to where they were in the open world, and their normal money and weapons are restored untouched.
+### Stage 10: combat mode upgrade (CS2 style) — rules mostly already done; scoreboard added; arena map still missing
+- **Already in place before this pass** (found, not newly built): `server/activities/combat.js` already runs real CS-style rounds — buy phase, live phase, round timer, first-to-5-rounds, per-round match-only money (`START_MONEY`/`WIN_BONUS`/`LOSS_BONUS`/`KILL_BONUS`, capped), a buy menu UI (`ActivityManager.js`'s lobby panel), out-of-bounds damage to keep players inside `venue.combat`, and returning players' real money/weapons untouched after leaving (the activity system swaps loadouts in and back out via `rememberWorld`/`leave`). Recoil, spread, headshot multipliers and armour purchases already exist in `shared/weapons.js` / `src/combat/WeaponManager.js`.
+- **New this commit — scoreboard:** holding/toggling Tab (`inventory` binding) during a live combat round now shows a proper scoreboard (`ActivityManager.renderScoreboard`) with kills, deaths and match money per player, both teams — previously Tab only closed the buy/team lobby panel, and that panel is deliberately hidden during live rounds so it doesn't block the view, leaving no scoreboard at all during a fight. Assists aren't tracked anywhere server-side, so that column always reads "–".
+- **Not done:**
+  - **The arena map itself.** `venue.combat` is only an invisible bounding box at real city coordinates (near the industrial district) — there is no actual desert-town geometry (walls, crates, bomb sites, mid lane, arches). Building one properly needs either new isolated geometry at that spot (risking overlap with whatever the city procedurally placed there already) or relocating the venue to dedicated space outside the normal heightfield (risky to do quickly without checking how `heightAt`/`collision.groundAt` behave out of bounds) — both need more care than this pass had budget for.
+  - **Grenades** (HE/flash/smoke) — explicitly "if possible" in the brief; skipped in favour of the scoreboard and other stages, given the size of a new throwable-weapon subsystem.
+  - **Halftime side swap** — rounds currently just count up to 5 with no team-swap partway through.
+  - An in-world "army barracks" entrance — combat (like the other activities) is currently entered through the Activities menu, not a walk-up building.
 - Notes: `server/activities/combat.js`, `src/activities/ActivityManager.js`, `src/combat/WeaponManager.js`, `shared/weapons.js`.
 
 ### Stage 11: football upgrade

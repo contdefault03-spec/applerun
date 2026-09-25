@@ -95,6 +95,7 @@ export class ActivityManager {
     g.hud.setActivity(null);
     g.hud.setMeter(null);
     this.lobbyEl?.remove(); this.lobbyEl = null;
+    this.removeScoreboard();
     g.avatar.anim.setLoop(null);
     g.player.mode = 'foot';
     if (g.interiors.current) await g.interiors.exit();
@@ -116,6 +117,30 @@ export class ActivityManager {
   }
 
   // ------------------------------------------------------------------ lobby UI (non-blocking panel)
+  // Combat scoreboard (Tab), shown during live rounds when the buy/team lobby panel is hidden:
+  // kills, deaths and match money per player. There's no assist tracking on the server yet, so
+  // that column always reads "–".
+  renderScoreboard() {
+    const g = this.game, s = this.s, L = s?.lobby;
+    if (!s || s.mode !== 'combat' || !L) return;
+    const teamOf = new Map(L.teams), cashOf = new Map(L.cash || []);
+    const row = (id) => {
+      const kd = L.kd?.find((k) => k[0] === id) || [id, 0, 0];
+      const nm = id === g.net.id ? `${g.settings.get('player.name')} (you)` : g.mp.remotes.get(id)?.avatar.name || id;
+      return h('tr', h('td', nm), h('td', kd[1]), h('td', kd[2]), h('td', '–'), h('td', `$${cashOf.get(id) ?? 0}`));
+    };
+    const ids = (t) => [...teamOf.entries()].filter(([, x]) => x === t).map(([id]) => id);
+    const table = (label, t) => h('div', h('h4', label), h('table.scoreboard', h('tr', h('th', 'Player'), h('th', 'K'), h('th', 'D'), h('th', 'A'), h('th', 'Money')), ...ids(t).map(row)));
+    const body = h('div.panel', { style: { position: 'fixed', left: '50%', top: '90px', transform: 'translateX(-50%)', width: 'min(560px, 92vw)', padding: '14px 18px', zIndex: 15 } },
+      h('div.row', h('b', 'Scoreboard'), h('div.spacer'), h('span.tag', `${L.score[0]} - ${L.score[1]}`)),
+      table('Team A', 0), table('Team B', 1),
+    );
+    this.scoreboardEl?.remove();
+    this.scoreboardEl = body;
+    document.getElementById('ui').append(body);
+  }
+  removeScoreboard() { this.scoreboardEl?.remove(); this.scoreboardEl = null; this.scoreboardOn = false; }
+
   renderLobby() {
     const g = this.game;
     const s = this.s;
@@ -482,6 +507,8 @@ export class ActivityManager {
       if (L) g.hud.setActivity(`<span style="color:#6fb6ff">A</span><span class="score">${L.score?.[0] ?? 0} : ${L.score?.[1] ?? 0}</span><span style="color:#ff6b7a">B</span><span class="muted">R${L.round || 0} · ${L.phase} · ${s.clock || L.t || 0}s</span>`);
       // freeze during buy phase
       if (L?.phase === 'buy') g.activeSlowdown = 0; else g.activeSlowdown = null;
+      if (playing && g.input.hit('inventory')) { this.scoreboardOn = !this.scoreboardOn; if (this.scoreboardOn) this.renderScoreboard(); else this.removeScoreboard(); }
+      if (this.scoreboardOn) this.renderScoreboard();
       return;
     }
     void playing;
