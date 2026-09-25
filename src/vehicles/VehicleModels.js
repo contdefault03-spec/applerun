@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LAYER, setLayer } from '../world/layers.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Vehicle specs (physics + layout) and procedural low-poly models with simple interiors.
@@ -83,6 +84,7 @@ export function buildVehicle(type, color) {
     spin.add(t, r); pivot.add(spin); group.add(pivot);
     wheels.push({ pivot, spin, front, x, z });
   }
+  setLayer(group, LAYER.MID); // no shadows in the far cascade
   return { group, wheels, lights, spec: s };
 }
 

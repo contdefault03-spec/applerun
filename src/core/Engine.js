@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PostFX } from './PostFX.js';
 
 // Renderer + scene + camera + main loop with quality presets.
 export class Engine {
@@ -19,6 +20,8 @@ export class Engine {
     this.camera = new THREE.PerspectiveCamera(settings.get('graphics.fov'), window.innerWidth / window.innerHeight, 0.08, q === 'low' ? 900 : 1600);
     this.scene.add(this.camera);
     this.updaters = [];
+    this.beforeRender = []; // hooks run after all updates, right before drawing (e.g. shadow cascades)
+    this.post = null;
     this.clock = new THREE.Clock();
     this.fps = 60;
     this.running = false;
@@ -28,6 +31,23 @@ export class Engine {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.post?.setSize(window.innerWidth, window.innerHeight);
+  }
+  /** Post-processing on/off (never on the low preset). */
+  setPost(on) {
+    if (on && this.quality !== 'low') {
+      if (!this.post) this.post = new PostFX(this, this.quality);
+    } else if (this.post) {
+      this.post.composer.dispose();
+      this.post = null;
+    }
+    this.renderer.toneMapping = this.post ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+  }
+  /** Draw the main scene (through post-processing when enabled). */
+  renderScene(dt = 1 / 60) {
+    for (const f of this.beforeRender) f();
+    if (this.post) this.post.render(dt);
+    else this.renderer.render(this.scene, this.camera);
   }
   onUpdate(fn) { this.updaters.push(fn); return () => (this.updaters = this.updaters.filter((f) => f !== fn)); }
   start() {
@@ -47,7 +67,7 @@ export class Engine {
         if (!this._lastErr || now - this._lastErr > 2000) { this._lastErr = now; console.error('[frame]', e); }
       }
       if (this.renderOverride) this.renderOverride();
-      else this.renderer.render(this.scene, this.camera);
+      else this.renderScene(dt);
     };
     loop();
   }
@@ -55,6 +75,6 @@ export class Engine {
   step(dt = 1 / 60, n = 1) {
     for (let i = 0; i < n; i++) for (const f of this.updaters) f(dt);
     if (this.renderOverride) this.renderOverride();
-    else this.renderer.render(this.scene, this.camera);
+    else this.renderScene(dt);
   }
 }

@@ -259,8 +259,8 @@ export class InteriorManager {
     g.world.setOutdoorVisible(false);
     g.engine.scene.fog.density = 0.004;
     g.engine.scene.background = new THREE.Color('#0a0a0f');
-    // toggling castShadow would recompile every shader; just stop updating the shadow map
-    g.world.env.sun.shadow.autoUpdate = false;
+    // toggling castShadow would recompile every shader; just stop updating the shadow maps
+    g.world.env.setShadowsActive(false);
     g.world.env.hemi.intensity = 0.45;
     const o = it.origin;
     g.player.interior = it;
@@ -295,7 +295,7 @@ export class InteriorManager {
     g.world.setOutdoorVisible(true);
     g.engine.scene.fog.density = 0.0009;
     g.engine.scene.background = null;
-    g.world.env.sun.shadow.autoUpdate = true;
+    g.world.env.setShadowsActive(true);
     const b = this.building(it.bid);
     const d = b.door;
     const out = 1.8;

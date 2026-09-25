@@ -18,6 +18,7 @@ import { InteriorManager } from './interiors/InteriorManager.js';
 import { Interaction } from './systems/Interaction.js';
 import { LightPool } from './fx/LightPool.js';
 import { prewarmScene } from './core/Prewarm.js';
+import { MeshoptSimplifier } from 'meshoptimizer';
 import { Effects } from './fx/Effects.js';
 import { VehicleManager } from './vehicles/VehicleManager.js';
 import { Traffic } from './vehicles/Traffic.js';
@@ -63,6 +64,7 @@ export class Game {
   async init(progress) {
     progress(0.55, 'Rigging characters…');
     await tick();
+    await MeshoptSimplifier.ready;
     this.factory.init();
     // Pre-build the playable character templates (fast afterwards)
     for (const id of ['max', 'ajan', 'rize', 'masked', 'lucky', 'dex', 'nova']) { this.factory.template(id); await tick(); }
@@ -90,6 +92,7 @@ export class Game {
     this.voice = this.addSystem(new VoiceChat(this));
     this.audio.addSample('ajan', this.assets.audio.ajan);
     if (this.assets.audio.fish) this.audio.addSample('fish', this.assets.audio.fish);
+    this.engine.setPost(this.settings.get('graphics.post') !== false);
     progress(0.93, 'Warming up shaders…');
     await prewarmScene(this);
     progress(0.95, 'Connecting to game server…');

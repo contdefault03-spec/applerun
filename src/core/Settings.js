@@ -19,6 +19,7 @@ const DEFAULTS = {
   'graphics.quality': 'high',
   'graphics.fov': 70,
   'graphics.shadows': true,
+  'graphics.post': true,
   'audio.master': 0.8, 'audio.music': 0.4, 'audio.sfx': 0.8, 'audio.voice': 1.0, 'audio.ambient': 0.6,
   'controls.sensitivity': 1.0, 'controls.invertY': false,
   'controls.bindings': DEFAULT_BINDINGS,

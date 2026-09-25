@@ -3,6 +3,7 @@ import { getHeightfield, heightAt, HF_BOUNDS, outsideDistance, SEA_FLOOR } from 
 import { WORLD, WATER_LEVEL, districtAt, getLayout, toPx, shoreXpx } from '../../shared/map/layout.js';
 import { groundDetailTexture } from './textures.js';
 import { pointInPoly } from '../../shared/map/geom.js';
+import { fogUniforms } from './GlobalShading.js';
 
 // Island terrain: the heightfield is split into square chunks, each a THREE.LOD with three
 // detail levels (frustum culled per chunk). Chunks entirely below the sea are skipped.
@@ -142,7 +143,7 @@ export function buildTerrain(quality = 'high') {
 // Endless ocean: a camera-following plane (world-space waves, so moving it is invisible)
 // that reads the terrain heightfield for shallow-water colour, see-through shallows and surf,
 // and fades into the fog colour towards the horizon.
-export function buildWater(far = 1600) {
+export function buildWater(far = 1600, skyUniforms = null) {
   const hf = getHeightfield();
   const half = new Uint16Array(hf.nx * hf.nz);
   for (let k = 0; k < half.length; k++) half[k] = THREE.DataUtils.toHalfFloat(hf.h[k]);
@@ -165,9 +166,13 @@ export function buildWater(far = 1600) {
     uWater: { value: WATER_LEVEL },
     uFar: { value: far },
     fogColor: { value: new THREE.Color() }, fogNear: { value: 1 }, fogFar: { value: 1000 }, fogDensity: { value: 0.0006 },
+    ...fogUniforms(),
+    // the sky's HDRI textures + blend state, shared so the sea reflects the actual sky
+    ...(skyUniforms ? { tDay: skyUniforms.tDay, tSunset: skyUniforms.tSunset, tNight: skyUniforms.tNight, uSkyW: skyUniforms.uW, uSkyRot: skyUniforms.uRot, uSkyGain: skyUniforms.uGain, uClampDay: skyUniforms.uClampDay } : {}),
   };
   const mat = new THREE.ShaderMaterial({
     uniforms,
+    defines: skyUniforms ? { SKY_REFLECT: 1 } : {},
     transparent: true,
     fog: true,
     depthWrite: false,
@@ -185,6 +190,24 @@ export function buildWater(far = 1600) {
       uniform float uTime; uniform vec3 uSunDir; uniform vec3 uDeep; uniform vec3 uMid; uniform vec3 uShallow; uniform vec3 uSky; uniform float uNight;
       uniform sampler2D uHeight; uniform vec4 uHB; uniform float uWater; uniform float uFar;
       varying vec3 vWorld;
+      #ifdef SKY_REFLECT
+        uniform sampler2D tDay, tSunset, tNight;
+        uniform vec3 uSkyW, uSkyRot, uSkyGain;
+        uniform float uClampDay;
+        vec2 skyUv(vec3 d, float rot) {
+          float c = cos(rot), s = sin(rot);
+          d = vec3(c * d.x - s * d.z, d.y, s * d.x + c * d.z);
+          return vec2(atan(d.z, d.x) / 6.28318530718 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.14159265359 + 0.5);
+        }
+        vec3 skyAt(vec3 d) {
+          d.y = max(d.y, 0.03);
+          vec3 c = vec3(0.0);
+          if (uSkyW.x > 0.001) c += uSkyW.x * min(texture2D(tDay, skyUv(d, uSkyRot.x)).rgb, vec3(uClampDay)) * uSkyGain.x;
+          if (uSkyW.y > 0.001) c += uSkyW.y * texture2D(tSunset, skyUv(d, uSkyRot.y)).rgb * uSkyGain.y;
+          if (uSkyW.z > 0.001) c += uSkyW.z * texture2D(tNight, skyUv(d, uSkyRot.z)).rgb * uSkyGain.z;
+          return c;
+        }
+      #endif
       #include <fog_pars_fragment>
       float terrainH(vec2 xz) {
         vec2 uv = (xz - uHB.xy) / uHB.zw;
@@ -215,7 +238,14 @@ export function buildWater(far = 1600) {
         float fres = pow(1.0 - max(dot(n, V), 0.0), 4.0);
         vec3 base = mix(uShallow, uMid, smoothstep(0.3, 4.0, depth));
         base = mix(base, uDeep, smoothstep(4.0, 16.0, depth));
-        vec3 col = mix(base, uSky, 0.12 + fres * 0.6);
+        #ifdef SKY_REFLECT
+          base *= mix(1.0, 0.12, uNight);
+          vec3 refl = skyAt(reflect(-V, n));
+          refl = mix(refl, uSky, 0.25);
+        #else
+          vec3 refl = uSky;
+        #endif
+        vec3 col = mix(base, refl, 0.08 + fres * 0.75);
         vec3 H = normalize(uSunDir + V);
         float spec = pow(max(dot(n, H), 0.0), 220.0) * (1.0 - uNight);
         col += spec * vec3(1.0, 0.95, 0.85) * 1.8;
@@ -223,8 +253,10 @@ export function buildWater(far = 1600) {
         float shore = 1.0 - smoothstep(0.0, 0.7, depth);
         float roll = smoothstep(0.8, 1.0, sin(depth * 7.0 - uTime * 1.6 + vnoise(vWorld.xz * 0.15) * 3.0)) * (1.0 - smoothstep(0.2, 1.1, depth));
         float foam = clamp(shore * (0.5 + 0.5 * vnoise(vWorld.xz * 0.9 + uTime * 0.4)) + roll * 0.5, 0.0, 1.0);
-        col = mix(col, vec3(0.95, 0.97, 0.98), foam * 0.85);
-        col *= mix(1.0, 0.22, uNight);
+        col = mix(col, vec3(0.95, 0.97, 0.98) * mix(1.0, 0.18, uNight), foam * 0.85);
+        #ifndef SKY_REFLECT
+          col *= mix(1.0, 0.22, uNight);
+        #endif
         float alpha = mix(0.45, 0.93, smoothstep(0.0, 3.0, depth));
         alpha = max(alpha, foam * 0.9);
         gl_FragColor = vec4(col, alpha);

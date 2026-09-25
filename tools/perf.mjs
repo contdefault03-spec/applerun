@@ -13,10 +13,11 @@ const res = await page.evaluate(async (views) => {
   const r = g.engine.renderer, cam = g.engine.camera, out = {};
   const orig = r.render.bind(r);
   let view = null, info = null;
-  r.render = (s, c) => { if (view && c === cam) { cam.position.set(...view[1]); cam.lookAt(...view[2]); cam.updateMatrixWorld(); } const t0 = performance.now(); const ret = orig(s, c); if (c === cam) info = { calls: r.info.render.calls, tris: r.info.render.triangles, ms: +(performance.now() - t0).toFixed(1) }; return ret; };
+  r.info.autoReset = false;
+  r.render = (s, c) => { if (view && c === cam) { cam.position.set(...view[1]); cam.lookAt(...view[2]); cam.updateMatrixWorld(); r.info.reset(); } const t0 = performance.now(); const ret = orig(s, c); if (c === cam) info = { calls: r.info.render.calls, tris: r.info.render.triangles, ms: +(performance.now() - t0).toFixed(1) }; return ret; };
   for (const [name, v] of Object.entries(views)) {
     g.player.teleport(v[0][0], g.world.collision.groundAt(v[0][0], v[0][1]) + 0.1, v[0][1], 0);
-    view = v; await new Promise((res) => setTimeout(res, 5000));
+    view = v; info = null; for (let k = 0; k < 40 && !info; k++) await new Promise((res) => setTimeout(res, 500)); await new Promise((res) => setTimeout(res, 3000));
     out[name] = { ...info, programs: r.info.programs.length, geometries: r.info.memory.geometries, textures: r.info.memory.textures };
   }
   return out;

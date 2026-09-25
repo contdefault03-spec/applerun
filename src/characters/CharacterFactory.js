@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { MeshoptSimplifier } from 'meshoptimizer';
+import { LAYER } from '../world/layers.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { Rig, RIGIFY_MAP, STD_BONES } from './Rig.js';
 import { autoRig } from './AutoRig.js';
@@ -14,6 +16,27 @@ const LIMB_CHILD = { upperArmL: 'forearmL', forearmL: 'handL', upperArmR: 'forea
  * Builds character templates from the supplied models and hands out independent
  * instances ({ root, rig, def }) that share geometry/materials.
  */
+/** Adds an invisible, simplified copy of a skinned mesh that only renders into shadow maps. */
+function addShadowProxy(skinned, ratio) {
+  if (!MeshoptSimplifier.supported) return;
+  const g = skinned.geometry;
+  const pos = g.attributes.position;
+  const p = pos.isInterleavedBufferAttribute ? Float32Array.from({ length: pos.count * 3 }, (_, i) => pos.getComponent(Math.floor(i / 3), i % 3)) : pos.array;
+  const idx = g.index ? Uint32Array.from(g.index.array) : Uint32Array.from({ length: pos.count }, (_, i) => i);
+  const remap = MeshoptSimplifier.generatePositionRemap(p, 3); // weld UV-seam duplicates
+  for (let i = 0; i < idx.length; i++) idx[i] = remap[idx[i]];
+  const [simple] = MeshoptSimplifier.simplify(idx, p, 3, Math.floor((idx.length * ratio) / 3) * 3, 0.02, ['Prune']);
+  const pg = new THREE.BufferGeometry();
+  for (const [k, a] of Object.entries(g.attributes)) pg.setAttribute(k, a);
+  pg.setIndex(new THREE.BufferAttribute(simple, 1));
+  const proxy = new THREE.SkinnedMesh(pg, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  proxy.name = skinned.name + '_shadow';
+  proxy.bind(skinned.skeleton, skinned.bindMatrix);
+  proxy.userData.shadowProxy = true;
+  skinned.userData.noShadow = true;
+  skinned.parent.add(proxy);
+}
+
 export class CharacterFactory {
   constructor(assets) {
     this.assets = assets;
@@ -33,6 +56,8 @@ export class CharacterFactory {
     if (!geo.attributes.normal) geo.computeVertexNormals();
     const rigged = autoRig(new THREE.Mesh(geo, src.material));
     rigged.skinned.material.roughness = 0.85;
+    // Max's scan is ~190k triangles: shadows come from a simplified proxy sharing his skeleton
+    addShadowProxy(rigged.skinned, 0.1);
     this.bases.max = { armature: rigged.armature, stdNames: Object.fromEntries(STD_BONES.map((n) => [n, n])) };
 
     // --- Humans: rigged man + woman from HumanModels.glb
@@ -99,8 +124,12 @@ export class CharacterFactory {
     const rig = new Rig(armature, bones);
     let mesh = null;
     root.traverse((o) => {
-      if (o.isSkinnedMesh) { mesh = o; o.frustumCulled = false; }
-      if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+      if (o.isSkinnedMesh && !o.userData.shadowProxy && !mesh) mesh = o;
+      if (o.isSkinnedMesh) o.frustumCulled = false;
+      if (o.isMesh) {
+        o.castShadow = !o.userData.noShadow; o.receiveShadow = false;
+        o.layers.set(o.userData.shadowProxy ? LAYER.SHADOW_NEAR : LAYER.NEAR);
+      }
     });
     return { root, rig, def: t.def, mesh, height: t.height, headHeight: t.headHeight, pivot: root.getObjectByName('pivot') };
   }

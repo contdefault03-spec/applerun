@@ -150,6 +150,7 @@ export class UIManager {
         slider('graphics.fov', 'Field of view', 55, 100, 1),
         h('label.lbl', 'Time of day'),
         h('div.row', ...[['Morning', 8], ['Noon', 13], ['Sunset', 18.6], ['Night', 22.5]].map(([n, t]) => h('button.btn.small', { onclick: () => { this.game.world?.env.setTime(t); this.game.net.send?.('setTime', { t }); } }, n))),
+        h('label.row', { style: { marginTop: '12px', cursor: 'pointer' } }, h('input', { type: 'checkbox', checked: !!s.get('graphics.post'), onchange: (e) => { s.set('graphics.post', e.target.checked); this.game.engine.setPost(e.target.checked); } }), 'Post-processing (ambient occlusion, bloom, colour grading, SMAA)'),
         check('camera.first', 'Start in first-person view'),
         h('p.muted', { style: { fontSize: '13px' } }, `Current FPS: ${Math.round(this.game.engine.fps)}`),
       );

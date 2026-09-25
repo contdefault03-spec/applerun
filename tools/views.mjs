@@ -14,11 +14,13 @@ export const VIEWS = [
   { name: 'north-edge', player: [0, -560], cam: [60, 90, -470], look: [-40, 0, -760], time: 11 },
   { name: 'pier', player: [-380, 0], cam: [-300, 25, 40], look: [-420, 2, 0], time: 17.5 },
   { name: 'night', player: [0, 0], cam: [10, 8, 24], look: [0, 4, -30], time: 22.5 },
+  { name: 'player', player: [6, 30], cam: [8.2, 1.9, 33.2], look: [6, 1, 30], time: 15 },
 ];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: +(process.env.VW || 1280), height: +(process.env.VH || 720) } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 await page.addInitScript(() => localStorage.setItem('bayview.settings', JSON.stringify({ 'player.name': 'Tester' })));
+if (process.env.NOPOST) await page.addInitScript(() => { window.__nopost = true; });
 await page.goto(url, { waitUntil: 'load' });
 await page.waitForFunction(() => window.game && window.game.mode === 'menu', null, { timeout: 240000 });
 await page.waitForTimeout(3000);
@@ -39,6 +41,7 @@ for (const v of VIEWS) {
       return r.__orig(s, c);
     };
     window.__view = v;
+    if (window.__nopost) g.engine.setPost(false);
     document.querySelectorAll('#hud, .hud, #chat, .toast, .notify').forEach((e) => { e.style.visibility = 'hidden'; });
   }, v);
   await page.waitForTimeout(+(process.env.WAIT || 6000));

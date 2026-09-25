@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { enableVisibleLayers } from '../world/layers.js';
 import { Animator } from '../characters/Animator.js';
 
 // 3D character preview used by the character-select screen (rotating turntable).
@@ -10,6 +11,7 @@ export class Showroom {
     this.scene.background = new THREE.Color('#0d1320');
     this.scene.fog = new THREE.Fog('#0d1320', 8, 22);
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+    enableVisibleLayers(this.camera);
     const key = new THREE.DirectionalLight('#ffffff', 2.4); key.position.set(3, 5, 4); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     const rim = new THREE.DirectionalLight('#ff8a5c', 1.6); rim.position.set(-4, 3, -3);
@@ -63,6 +65,10 @@ export class Showroom {
     const r = this.engine.renderer;
     this.camera.aspect = r.domElement.width / r.domElement.height;
     this.camera.updateProjectionMatrix();
+    // the showroom renders directly (no post chain), so it tone-maps itself
+    const tm = r.toneMapping;
+    r.toneMapping = THREE.ACESFilmicToneMapping;
     r.render(this.scene, this.camera);
+    r.toneMapping = tm;
   }
 }

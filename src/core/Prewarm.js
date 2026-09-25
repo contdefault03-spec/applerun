@@ -40,7 +40,7 @@ export async function prewarmScene(game) {
   try {
     if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
     else renderer.compile(scene, camera);
-    renderer.render(scene, camera);
+    game.engine.renderScene(); // also builds the post-processing and shadow programs
   } finally {
     scene.remove(group);
     scene.remove(decal);

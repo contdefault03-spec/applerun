@@ -12,6 +12,9 @@
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
+    "meshoptimizer": "^1.2.0",
+    "n8ao": "^2.0.1",
+    "postprocessing": "^6.39.5",
     "three": "^0.183.0",
     "ws": "^8.18.0"
   },
@@ -19,7 +22,7 @@
     "firebase-admin": "^13.0.0"
   },
   "devDependencies": {
-    "vite": "^7.1.0",
-    "playwright-core": "^1.55.0"
+    "playwright-core": "^1.55.0",
+    "vite": "^7.1.0"
   }
 }
