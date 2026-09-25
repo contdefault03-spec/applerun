@@ -14,7 +14,7 @@ export class Traffic {
     this.graph = game.layout.graph;
     this.roads = game.layout.roads;
     this.cars = [];
-    this.target = game.engine.quality === 'low' ? 14 : game.engine.quality === 'medium' ? 22 : 30;
+    this.target = game.engine.quality === 'low' ? 20 : game.engine.quality === 'medium' ? 32 : 46;
     this.time = 0;
     this.pools = new Map();
     // cumulative lengths per edge
