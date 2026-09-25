@@ -18,6 +18,7 @@ export class CameraController {
     this.vehicleYaw = 0;
     this.recoil = 0;
     this.fovKick = 0;
+    this.cineActive = false;
     this.baseFov = settings.get('graphics.fov');
     settings.onChange((k, v) => { if (k === 'graphics.fov') { this.baseFov = v; } });
   }
@@ -44,6 +45,7 @@ export class CameraController {
    * @param avatar Avatar  @param aiming bool
    */
   updateOnFoot(dt, avatar, aiming, crouch) {
+    if (this.cineActive) return;
     this.aimBlend += ((aiming ? 1 : 0) - this.aimBlend) * Math.min(1, dt * 10);
     const h = avatar.char.height;
     const head = avatar.position.clone();
@@ -73,6 +75,7 @@ export class CameraController {
   }
 
   updateVehicle(dt, vehicle) {
+    if (this.cineActive) return;
     const pos = vehicle.group.position;
     const idle = performance.now() - this.lastMouse > 1400;
     const vyaw = vehicle.yaw + (vehicle.speed < -1 ? Math.PI : 0);
