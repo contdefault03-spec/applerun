@@ -381,6 +381,58 @@ export class InteriorManager {
         it.uses.push({ x: 0, z: -D / 2 + 1.3, kind: 'cinemaPlay', label: 'Press E to play/stop the movie' });
         break;
       }
+      case 'concert': {
+        // Stage at the far wall with a simple fictional band; a big standing crowd facing it,
+        // a few benches at the back, and a small backstage nook behind the stage.
+        const stageZ = -D / 2 + 3.5, stageW = W * 0.6, stageH = 1.1;
+        const stage = new THREE.Mesh(new THREE.BoxGeometry(stageW, stageH, 5), mat('#2a1a0a'));
+        stage.position.set(0, stageH / 2, stageZ); g.add(stage);
+        it.colliders.push({ x: 0, z: stageZ, hx: stageW / 2, hz: 2.5, h: stageH, walk: true });
+        // backstage nook behind the stage
+        addWall(0, -D / 2 + 0.6, stageW * 0.7, 0.2);
+        // band: simple boxy figures with instrument silhouettes, animated in InteriorManager.update
+        const band = [];
+        const bandSpec = [
+          { x: -2.2, name: 'guitar', color: '#c62828' }, { x: -0.8, name: 'bass', color: '#1565c0' },
+          { x: 1.4, name: 'drums', color: '#37474f' }, { x: 2.6, name: 'vocalist', color: '#f9a825' },
+        ];
+        for (const b2 of bandSpec) {
+          const fig = new THREE.Group();
+          const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.8, 4, 8), mat('#333'));
+          body.position.y = stageH + 0.75; fig.add(body);
+          const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), mat('#caa07a'));
+          head.position.y = stageH + 1.35; fig.add(head);
+          if (b2.name === 'drums') {
+            const kit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.5, 10), mat('#222'));
+            kit.position.set(0, stageH + 0.3, -0.4); fig.add(kit);
+          } else if (b2.name !== 'vocalist') {
+            const guitar = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.35), mat(b2.color));
+            guitar.position.set(0.2, stageH + 0.55, 0.25); guitar.rotation.z = 0.5; fig.add(guitar);
+          } else {
+            const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), mat('#111'));
+            mic.position.set(0, stageH + 0.9, 0.3); fig.add(mic);
+          }
+          fig.position.set(b2.x, 0, stageZ + 0.3);
+          g.add(fig);
+          band.push(fig);
+        }
+        it.band = band;
+        // stage lighting rig
+        for (const lx of [-stageW / 3, 0, stageW / 3]) {
+          const beam = new THREE.Mesh(new THREE.ConeGeometry(1.6, H - stageH - 0.5, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#ff2fd6', transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+          beam.position.set(lx, (H + stageH) / 2, stageZ + 1); beam.rotation.x = Math.PI; g.add(beam);
+          it.stageBeams = it.stageBeams || []; it.stageBeams.push(beam);
+        }
+        // crowd: a big standing block facing the stage, a few benches at the back
+        for (let r = 0; r < 6; r++) for (let cIdx = 0; cIdx < 9; cIdx++) {
+          if (rnd() < 0.15) continue;
+          const x = -W / 2 + 1.5 + cIdx * (W - 3) / 8, z = stageZ + 4 + r * 1.6;
+          it.npcSpots.push({ x, z, role: 'civilian', yaw: 0 });
+        }
+        it.npcSpots.push({ x: -W / 2 + 2, z: D / 2 - 2, role: 'civilian', sit: true }, { x: W / 2 - 2, z: D / 2 - 2, role: 'civilian', sit: true });
+        it.uses.push({ x: 0, z: D / 2 - 1.5, kind: 'concertVibe', label: 'Feel the music' });
+        break;
+      }
       case 'dome': {
         // wrestling ring in the middle with stands around
         const ring = this.game.activities?.buildRing ? this.game.activities.buildRing() : null;
@@ -424,6 +476,12 @@ export class InteriorManager {
     g.police?.onEnterInterior?.(it);
     for (const s of g.systems) s.onEnterInterior?.(it);
     if (it.type === 'nightclub') { this.discoT = 0; this.clubAudio = g.audio.clubBeat?.(() => ({ x: o.x + it.djBooth.x, y: 1.2, z: o.z + it.djBooth.z })); }
+    if (it.type === 'concert') {
+      this.discoT = 0;
+      g.audio.ensureSample('concert', g.assets.url('concert')).then((ok) => {
+        if (ok && this.current === it) this.clubAudio = g.audio.playLoopFrom('concert', { x: o.x, y: 2, z: o.z - it.D / 4 }, { volume: 0.8, ref: 6, max: 30 });
+      });
+    }
     this.fadeTo(0);
   }
   update(dt) {
@@ -433,11 +491,21 @@ export class InteriorManager {
       it.dolmaRespawnT -= dt;
       if (it.dolmaRespawnT <= 0) it.dolmaMesh.visible = true;
     }
-    if (it.type !== 'nightclub') return;
-    this.discoT += dt;
-    const hue = (t) => new THREE.Color().setHSL((this.discoT * 0.15 + t) % 1, 0.9, 0.55);
-    for (const d of it.discoTiles) d.mesh.material.emissive.copy(hue(d.phase * 0.1));
-    for (let i = 0; i < this.pool.length; i++) if (it.lights[i]) this.pool[i].color.copy(hue(i / this.pool.length));
+    if (it.type === 'nightclub') {
+      this.discoT += dt;
+      const hue = (t) => new THREE.Color().setHSL((this.discoT * 0.15 + t) % 1, 0.9, 0.55);
+      for (const d of it.discoTiles) d.mesh.material.emissive.copy(hue(d.phase * 0.1));
+      for (let i = 0; i < this.pool.length; i++) if (it.lights[i]) this.pool[i].color.copy(hue(i / this.pool.length));
+    } else if (it.type === 'concert') {
+      this.discoT += dt;
+      // stage light colours cycle, roughly "in time" with the beat (bpm-ish pulse, not real
+      // audio analysis) — and the band sways so it doesn't read as frozen mannequins
+      const hue = (t) => new THREE.Color().setHSL((this.discoT * 0.1 + t) % 1, 0.85, 0.55);
+      for (let i = 0; i < this.pool.length; i++) if (it.lights[i]) this.pool[i].color.copy(hue(i / this.pool.length));
+      const beat = 0.5 + 0.5 * Math.sin(this.discoT * 6.0);
+      for (const beam of it.stageBeams || []) { beam.material.color.copy(hue(beam.position.x * 0.1)); beam.material.opacity = 0.06 + beat * 0.12; }
+      for (let i = 0; i < (it.band || []).length; i++) { const fig = it.band[i]; fig.rotation.z = Math.sin(this.discoT * 3 + i) * 0.15; fig.position.y = Math.abs(Math.sin(this.discoT * 6 + i)) * 0.05; }
+    }
   }
   /** Cinema screen: press E to play/stop the supplied film as a real video texture, with
    * positional audio at the screen. Lazily creates the <video>/VideoTexture on first play so
@@ -497,7 +565,7 @@ export class InteriorManager {
     if (!it) return;
     await this.fadeTo(1);
     g.audio.door(g.player.pos);
-    if (this.clubAudio) { this.clubAudio.stop(); this.clubAudio = null; }
+    if (this.clubAudio) { this.clubAudio.stop(it.type === 'concert' ? 0.6 : 0); this.clubAudio = null; }
     this.stopCinema(it);
     it.group.visible = false;
     this.current = null;

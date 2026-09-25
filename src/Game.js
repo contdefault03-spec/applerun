@@ -368,6 +368,7 @@ export class Game {
         break;
       }
       case 'cinemaPlay': this.interiors.toggleCinema(); break;
+      case 'concertVibe': this.avatar.anim.play('flex'); r('The crowd roars!', 'good'); break;
       case 'arcade': {
         if (this.profile.money < 5) return r('A game costs $5.', 'bad');
         const res = await this.net.request('reward', { kind: 'arcade' });

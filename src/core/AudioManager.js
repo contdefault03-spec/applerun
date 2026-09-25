@@ -53,6 +53,40 @@ export class AudioManager {
     if (!this.ctx) { this.pendingRaw[id] = arrayBuffer; return; }
     await this.decode(id, arrayBuffer);
   }
+  /** Fetch + decode a sample on demand (for large preload:false manifest entries like the
+   * concert/gang audio, which shouldn't be downloaded until actually needed). Safe to call
+   * repeatedly — only fetches once. */
+  async ensureSample(id, url) {
+    if (this.buffers[id]) return true;
+    this._loadingSamples ??= {};
+    if (!this._loadingSamples[id]) {
+      this._loadingSamples[id] = (async () => {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        await this.addSample(id, await r.arrayBuffer());
+      })();
+    }
+    try { await this._loadingSamples[id]; return true; }
+    catch (e) { console.error(`Audio "${id}" failed to load:`, e); return false; }
+  }
+  /** Looping positional sample that starts at a random offset and can be faded out/stopped.
+   * Returns { stop(fade) }. */
+  playLoopFrom(id, pos, { volume = 0.7, ref = 8, max = 60 } = {}) {
+    if (!this.ctx || !this.buffers[id]) return { stop() {} };
+    const c = this.ctx;
+    const s = c.createBufferSource();
+    s.buffer = this.buffers[id]; s.loop = true;
+    const dur = s.buffer.duration;
+    const g = c.createGain(); g.gain.value = volume;
+    s.connect(g); g.connect(this.out('music', pos, { ref, max }));
+    s.start(0, Math.random() * dur);
+    return {
+      stop: (fade = 0) => {
+        if (fade > 0) { g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0, c.currentTime + fade); setTimeout(() => { try { s.stop(); } catch { /* already stopped */ } }, fade * 1000 + 50); }
+        else { try { s.stop(); } catch { /* already stopped */ } }
+      },
+    };
+  }
   async decode(id, raw) {
     try { this.buffers[id] = await this.ctx.decodeAudioData(raw.slice(0)); }
     catch (e) { console.error(`Audio "${id}" failed to decode:`, e); }
