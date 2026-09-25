@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { getLayout } from '../../shared/map/layout.js';
 import { mulberry32 } from '../../shared/rng.js';
-import { facadeTexture, facadeEmissive, FACADE_STYLES, roofTexture, storefrontTexture, graffitiTexture, signTexture } from './textures.js';
+import { facadeTexture, facadeEmissiveRandom, FACADE_STYLES, roofTexture, storefrontTexture, graffitiTexture, signTexture } from './textures.js';
 
 export const TYPE_STYLE = {
   tower: 'glass', office: 'office', apartment: 'apartment', shop: 'shop', restaurant: 'shop', cafe: 'shop', bar: 'rough', nightclub: 'rough', clothing: 'shop',
@@ -100,7 +100,8 @@ function addGable(bucket, wallBucket, b, hx, hz, y, rise, color, wallColor, st) 
 }
 
 // Small projecting balcony (floor slab + railing) on some bays of every upper floor, on the
-// building's front (door-facing) side.
+// building's front (door-facing) side. Each occupied balcony rolls its own small set of details
+// (chair, table, plant, laundry line) so neighbouring balconies don't read as identical.
 function addBalconies(bucket, b, st, wallCol, rand) {
   const floors = Math.floor(b.h / st.floor);
   if (floors < 2) return;
@@ -110,6 +111,8 @@ function addBalconies(bucket, b, st, wallCol, rand) {
   const bw = fz !== 0 ? 1.15 : 0.75, bd = fz !== 0 ? 0.75 : 1.15;
   const railCol = wallCol.clone().multiplyScalar(0.62);
   const outx = fx * (b.hx + Math.max(bw, bd) / 2 + 0.02), outz = fz * (b.hz + Math.max(bw, bd) / 2 + 0.02);
+  const potCol = new THREE.Color('#8d6e5a'), leafCol = new THREE.Color('#4d8c3c');
+  const clothCols = [new THREE.Color('#e8e4da'), new THREE.Color('#c8d6e8'), new THREE.Color('#e0b8a8'), new THREE.Color('#c8c8c8')];
   for (let fl = 1; fl < floors; fl++) {
     const fy = b.base + fl * st.floor - 0.15;
     for (let i = 0; i < n; i++) {
@@ -118,6 +121,34 @@ function addBalconies(bucket, b, st, wallCol, rand) {
       const cx = (fz !== 0 ? t * faceLen * 1.7 : 0) + outx, cz = (fz === 0 ? t * faceLen * 1.7 : 0) + outz;
       addFlatTop(bucket, b, bw, bd, fy, wallCol, cx, cz);
       addBoxWalls(bucket, b, bw, bd, fy, fy + 0.85, { bay: 2, floor: 0.85 }, railCol, cx, cz);
+      // one of a few small furnishing kits, chosen per balcony so layouts vary
+      const kit = rand();
+      const local = (lx, ly, lz) => { const dx = (fz !== 0 ? lx : 0) + fx * lz, dz = (fz !== 0 ? 0 : lx) + fz * lz; return [cx + dx, fy + ly, cz + dz]; };
+      if (kit < 0.3) {
+        // chair + small table
+        const [tx, ty, tz] = local(0, 0.35, 0);
+        addBoxWalls(bucket, b, 0.35, 0.35, fy, fy + 0.4, { bay: 1, floor: 0.4 }, wallCol.clone().multiplyScalar(0.75), tx - cx, tz - cz);
+        addFlatTop(bucket, b, 0.35, 0.35, ty + 0.05, wallCol.clone().multiplyScalar(0.9), tx - cx, tz - cz);
+        const [chx, , chz] = local(bw * 0.5, 0, bd * 0.3);
+        addBoxWalls(bucket, b, 0.3, 0.3, fy, fy + 0.45, { bay: 1, floor: 0.45 }, wallCol.clone().multiplyScalar(0.5), chx - cx, chz - cz);
+      } else if (kit < 0.55) {
+        // potted plant(s)
+        for (const ox of [-0.35, 0.3]) {
+          if (rand() < 0.3) continue;
+          const [px, , pz] = local(ox, 0, bd * 0.3);
+          addBoxWalls(bucket, b, 0.22, 0.22, fy, fy + 0.3, { bay: 1, floor: 0.3 }, potCol, px - cx, pz - cz);
+          addFlatTop(bucket, b, 0.28, 0.28, fy + 0.5, leafCol, px - cx, pz - cz);
+        }
+      } else if (kit < 0.8) {
+        // laundry line with a couple of hanging cloths
+        const lineCol = clothCols[Math.floor(rand() * clothCols.length)];
+        for (const ox of [-0.3, 0, 0.3]) {
+          if (rand() < 0.25) continue;
+          const [lx, , lz] = local(ox, 0, 0);
+          addFlatTop(bucket, b, 0.22, 0.03, fy + 0.65, lineCol, lx - cx, lz - cz);
+        }
+      }
+      // else: bare balcony
     }
   }
 }
@@ -236,9 +267,13 @@ export function buildBuildings() {
   }
   for (const [style, bucket] of Object.entries(buckets)) {
     const tex = facadeTexture(style);
+    // Random-lit windows: the emissive map repeats every 4x4 bays instead of every single bay
+    // (a separate UV transform from the colour map), so lit windows don't form a uniform grid.
+    const emTex = facadeEmissiveRandom(style, 4, 4);
+    emTex.repeat.set(0.25, 0.25);
     const mat = new THREE.MeshStandardMaterial({
       map: tex, vertexColors: true, roughness: style === 'glass' ? 0.25 : 0.85, metalness: style === 'glass' ? 0.35 : 0.02,
-      emissive: '#ffc877', emissiveMap: facadeEmissive(style), emissiveIntensity: 0,
+      emissive: '#ffc877', emissiveMap: emTex, emissiveIntensity: 0,
     });
     if (style === 'glass') {
       // Cheap interior-mapping trick for distant skyscraper windows: each window cell fakes a

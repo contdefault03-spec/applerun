@@ -80,6 +80,24 @@ export function facadeEmissive(style) {
   });
 }
 
+// Random-lit-windows emissive mask: a grid of `cols`x`rows` window cells (each one whole
+// bay/floor, same window geometry as facadeTexture), each independently on or off. Applied with
+// emissiveMap.repeat = (1/cols, 1/rows) so several bays share one supertile instead of every
+// window lighting identically — avoids the "uniform glowing grid" look at night.
+export function facadeEmissiveRandom(style, cols = 4, rows = 4) {
+  const s = FACADE_STYLES[style] || FACADE_STYLES.office;
+  const cw = 32, ch = 32; // px per cell
+  return canvasTex(`facadeER_${style}_${cols}x${rows}`, cw * cols, ch * rows, (g, w, h) => {
+    g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+    const ww = cw * s.winW, wh = ch * s.winH;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (rnd() > 0.4) continue; // ~40% of windows lit
+      const x0 = c * cw + (cw - ww) / 2, y0 = r * ch + (s.highWin ? ch * 0.12 : (ch - wh) / 2 - ch * 0.04);
+      g.fillStyle = '#ffd89a'; g.fillRect(x0, y0, ww, wh);
+    }
+  }, { srgb: false });
+}
+
 export function storefrontTexture() {
   return canvasTex('storefront', 256, 128, (g, w, h) => {
     g.fillStyle = '#3b3530'; g.fillRect(0, 0, w, h);

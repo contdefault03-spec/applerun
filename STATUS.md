@@ -233,6 +233,38 @@ machinery to add them already exists; (3) per-window random night lighting on bu
 restructuring wall geometry to one quad per bay); (4) the fishing mission's cinematic polish (rod
 model, synced camera cut, real fish model).
 
+## v1.2 upgrade (second pass, owner's 17-stage "finish the missing features" brief)
+
+Runs the same way as the first pass: one stage at a time, quick check, commit. The owner's brief
+named a "gang" encounter (Stage 14) built around a real nationality's flag/name — that part is
+built with an invented fictional gang identity instead (see Stage 14 below for why).
+
+**New owner-supplied files this pass:** `dollma.glb` (food item), `music.mp3` (concert loop),
+`videos.mp4` (cinema film), `sound.mp3` (gang encounter cue). No `flag.png` or `ad1/2/3.png` were
+actually attached despite being named in the brief — see Stages 14 and 15 below.
+
+### v1.2 Stage 1: balcony variety + random-lit windows — done
+- **Balcony furniture**, `src/world/Buildings.js` `addBalconies`: each occupied balcony now rolls one of a few small furnishing kits (chair + side table / potted plants / a laundry line with hanging cloths / bare) so neighbouring balconies read differently, instead of every balcony being an identical slab + railing.
+- **Random-lit windows at night**, `src/world/textures.js` `facadeEmissiveRandom` + `Buildings.js`: the night-glow emissive map is now a 4×4 grid of independently-lit windows (~40% on), applied with its own UV repeat (`emissiveMap.repeat = (0.25, 0.25)`, a separate transform from the base colour map's UV — no geometry changes needed) so several bays share one randomized supertile instead of the whole building lighting as one uniform grid. Confirmed visually at night: towers now show a scattered lit/dark pattern, not a solid glow. The daytime glass interior-mapping shader (added in v1.1) is unchanged and still applies underneath.
+- **Not done:** real modelled interiors on skyscraper lower floors (still the distant interior-mapping shader at all heights) — genuinely walkable lower office floors is Stage-5/interior-generation-scale work, not a quick add; noted as still open.
+
+### v1.2 Stage 2: remaining interior types + dolma — in progress
+### v1.2 Stage 3: cinema — pending
+### v1.2 Stage 4: concert hall — pending
+### v1.2 Stage 5: road pass — pending
+### v1.2 Stage 6: traffic density — pending
+### v1.2 Stage 7: pedestrian sidewalk AI — pending
+### v1.2 Stage 8: park life — pending
+### v1.2 Stage 9: police/wanted rework — pending
+### v1.2 Stage 10: finish the pier — pending
+### v1.2 Stage 11: fishing mission polish — pending
+### v1.2 Stage 12: CS arena — pending
+### v1.2 Stage 13: basketball AI — pending
+### v1.2 Stage 14: gang encounters — pending (built with an invented fictional gang, not a real nationality; no `flag.png` was supplied so its emblem/colours are generated in code)
+### v1.2 Stage 15: advertisements — **blocked, not started.** `ad1.png`/`ad2.png`/`ad3.png` were named in the brief but never actually uploaded (only `dollma.glb`, `music.mp3`, `videos.mp4`, `sound.mp3` came through). Needs those three image files before this stage can start.
+### v1.2 Stage 16: performance pass — pending
+### v1.2 Stage 17: final QA + docs — pending
+
 ## Useful tools
 | Command | What it does |
 |---|---|
