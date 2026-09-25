@@ -15,6 +15,7 @@ export const VIEWS = [
   { name: 'pier', player: [-380, 0], cam: [-300, 25, 40], look: [-420, 2, 0], time: 17.5 },
   { name: 'night', player: [0, 0], cam: [10, 8, 24], look: [0, 4, -30], time: 22.5 },
   { name: 'player', player: [6, 30], cam: [8.2, 1.9, 33.2], look: [6, 1, 30], time: 15 },
+  { name: 'road', player: [-9, 90], cam: [-8.8, 1.8, 92], look: [0.5, 0.6, 40], time: 10.5 },
 ];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: +(process.env.VW || 1280), height: +(process.env.VH || 720) } });

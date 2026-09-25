@@ -10,6 +10,7 @@ import { Collision } from './Collision.js';
 import { Environment } from './Environment.js';
 import { mergeStatic, splitByCells } from './mergeStatic.js';
 import { LAYER } from './layers.js';
+import { TextureLib } from './TextureLib.js';
 
 // WorldManager: builds the city from the shared layout and owns collision + environment.
 export class World {
@@ -31,14 +32,26 @@ export class World {
     this.env = new Environment(this.scene, this.engine.renderer, q, this.engine.camera);
     await this.env.load((msg) => onProgress(msg));
     this.engine.beforeRender.push(() => this.env.preRender());
-    const terrain = await step('Building terrain…', () => buildTerrain(q));
+    this.textures = new TextureLib(this.engine.renderer);
+    onProgress('Loading ground textures…');
+    let terrainTex = null;
+    try { terrainTex = await this.textures.terrainArrays(); } catch (e) { console.warn('[world] terrain textures unavailable, using fallback', e); }
+    const terrain = await step('Building terrain…', () => buildTerrain(q, terrainTex));
     this.outdoor.add(terrain);
     const water = await step('Filling the ocean…', () => buildWater(this.engine.camera.far, this.env.sky.uniforms));
     this.water = water;
     this.outdoor.add(water.mesh);
     this.env.waterUniforms = water.uniforms;
     this.waterUniforms = water.uniforms;
-    await step('Paving roads…', () => this.outdoor.add(buildRoads()));
+    let roadTex = null;
+    try {
+      const [asphalt, pavement, concrete, grass, street] = await Promise.all(['asphalt', 'pavement', 'concrete', 'grass', 'street'].map((n) => this.textures.material(n)));
+      roadTex = { asphalt, pavement, concrete, grass, street: { ar: street.ar, n: street.n } };
+    } catch (e) { console.warn('[world] road textures unavailable', e); }
+    const roads = await step('Paving roads…', () => buildRoads(roadTex));
+    this.outdoor.add(roads.group);
+    this.medianTrees = roads.medianTrees;
+    for (const c of roads.colliders) this.collision.add(c);
     const b = await step('Raising buildings…', () => buildBuildings());
     // cut the city-wide merged facade meshes into 200 m cells for culling
     for (const m of [...b.group.children]) if (m.isMesh && m.geometry.attributes.position.count > 3000) { m.removeFromParent(); b.group.add(...splitByCells(m, 200)); }

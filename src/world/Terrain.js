@@ -4,6 +4,7 @@ import { WORLD, WATER_LEVEL, districtAt, getLayout, toPx, shoreXpx } from '../..
 import { groundDetailTexture } from './textures.js';
 import { pointInPoly } from '../../shared/map/geom.js';
 import { fogUniforms } from './GlobalShading.js';
+import { createTerrainMaterial } from './TerrainMaterial.js';
 
 // Island terrain: the heightfield is split into square chunks, each a THREE.LOD with three
 // detail levels (frustum culled per chunk). Chunks entirely below the sea are skipped.
@@ -16,49 +17,60 @@ function slopeAt(x, z) {
   return Math.hypot(hx, hz) / 4;
 }
 
-function makeColorFn() {
+// Per-vertex surface: splat weights for the 6 terrain layers (grass, dirt, sand, rock, snow,
+// paving) + a colour tint (dry grass, dark parking asphalt…). Rules use height, slope and the
+// district, so snow only appears near the summit and rock on steep slopes/cliffs.
+function makeSurfaceFn() {
   const L = getLayout();
   const lm = L.landmarks;
   const inRect = (x, z, b, pad = 0) => Math.abs(x - b.x) < b.hx + pad && Math.abs(z - b.z) < b.hz + pad;
   const farm = [lm.farm1, lm.farm2, lm.field];
-  const c = new THREE.Color();
-  return (x, z, h, out, o) => {
+  const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  return (x, z, h, spl, tint, o) => {
     const slope = slopeAt(x, z);
     const n = (Math.sin(x * 0.13) * Math.cos(z * 0.11) + Math.sin(x * 0.041 + z * 0.057)) * 0.5;
     const outside = outsideDistance(x, z) > 0;
-    if (h < WATER_LEVEL - 0.2) c.setRGB(0.62, 0.57, 0.45).multiplyScalar(h < -6 ? 0.7 : 0.9); // sea floor
-    else if (h > 118) c.setRGB(0.95, 0.96, 0.98); // snow
-    else if (slope > 0.75 || h > 85) c.setRGB(0.47, 0.43, 0.38).multiplyScalar(0.9 + n * 0.12); // rock / cliff
+    let grass = 1, dirt = 0, sand = 0, rock = 0, snow = 0, pave = 0;
+    let tr = 1, tg = 1, tb = 1;
+    snow = sm(110, 124, h) * (1 - sm(0.95, 1.4, slope));
+    rock = Math.max(sm(0.5, 0.85, slope), sm(78, 98, h)) * (1 - snow);
+    if (h < WATER_LEVEL - 0.2) { sand = 1; tr = tg = tb = 0.8; } // sea floor
     else if (outside) {
-      if (h < 1.8) c.setRGB(0.84, 0.76, 0.58).multiplyScalar(0.95 + n * 0.05); // island beaches
-      else if (h < 3) c.setRGB(0.6, 0.6, 0.4).multiplyScalar(0.95 + n * 0.05); // dune grass
-      else c.setRGB(0.3 + (h > 30 ? 0.08 : 0), 0.5 - (h > 30 ? 0.06 : 0), 0.22).multiplyScalar(0.85 + n * 0.15);
+      sand = 1 - sm(1.2, 2.2, h);
+      dirt = sm(0.25, 0.5, slope) * 0.6;
     } else {
       const [px, py] = toPx(x, z);
       const dist = districtAt(x, z).id;
       const shore = px - shoreXpx(py);
-      if (shore < 44 || h < 0.25 && shore < 60) c.setRGB(0.93, 0.85, 0.64).multiplyScalar(0.95 + n * 0.05); // sand
-      else if (farm.some((b) => inRect(x, z, b))) c.setRGB(0.55, 0.43, 0.27).multiplyScalar(0.92 + 0.08 * Math.sin(x * 0.9));
-      else if (['downtown', 'midtown'].includes(dist) && !inRect(x, z, lm.plazaPark) && !inRect(x, z, lm.fountainPlaza)) c.setRGB(0.62, 0.61, 0.58);
-      else if (dist === 'industrial' || inRect(x, z, lm.containerYard, 6)) c.setRGB(0.5, 0.5, 0.48);
-      else if (inRect(x, z, lm.parkingStadium, 2) || inRect(x, z, lm.parkingArena, 2)) c.setRGB(0.3, 0.31, 0.32);
-      else if (dist === 'eastside') c.setRGB(0.45, 0.5, 0.3).multiplyScalar(0.9 + n * 0.1); // patchy dry grass
+      if (shore < 44 || (h < 0.25 && shore < 60)) sand = 1;
+      else if (farm.some((b) => inRect(x, z, b))) { dirt = 1; tr = 1.05; tg = 0.95; tb = 0.9; }
+      else if (['downtown', 'midtown'].includes(dist) && !inRect(x, z, lm.plazaPark) && !inRect(x, z, lm.fountainPlaza)) pave = 1;
+      else if (dist === 'industrial' || inRect(x, z, lm.containerYard, 6)) { pave = 0.75; dirt = 0.35; tr = tg = tb = 0.82; }
+      else if (inRect(x, z, lm.parkingStadium, 2) || inRect(x, z, lm.parkingArena, 2)) { pave = 1; tr = tg = tb = 0.55; }
+      else if (dist === 'eastside') { dirt = 0.45 + 0.3 * n; tr = 1.08; tg = 1.0; tb = 0.82; }
       else {
-        const dry = dist === 'mountain' ? 0.25 : dist === 'outskirts' ? 0.12 : 0;
-        c.setRGB(0.3 + dry * 0.3, 0.52 - dry * 0.12, 0.22).multiplyScalar(0.85 + n * 0.15);
+        const dry = dist === 'mountain' ? 0.35 : dist === 'outskirts' ? 0.18 : 0;
+        tr = 1 + dry * 0.35; tg = 1 - dry * 0.05; tb = 1 - dry * 0.3;
+        dirt = sm(0.3, 0.55, slope) * 0.7;
       }
     }
-    out[o] = c.r; out[o + 1] = c.g; out[o + 2] = c.b;
+    grass = Math.max(0, 1 - Math.max(dirt, sand, rock, snow, pave));
+    const sum = grass + dirt + sand + rock + snow + pave || 1;
+    spl[o * 6] = grass / sum; spl[o * 6 + 1] = dirt / sum; spl[o * 6 + 2] = sand / sum;
+    spl[o * 6 + 3] = rock / sum; spl[o * 6 + 4] = snow / sum; spl[o * 6 + 5] = pave / sum;
+    const v = 0.94 + n * 0.06;
+    tint[o * 3] = tr * v; tint[o * 3 + 1] = tg * v; tint[o * 3 + 2] = tb * v;
   };
 }
 
 // One chunk at one detail level: (n+1)^2 grid + a skirt ring hanging 6 m down.
-function chunkGeometry(x0, z0, size, step, colorFn) {
+function chunkGeometry(x0, z0, size, step, surfaceFn) {
   const n = Math.round(size / step);
   const st = size / n;
   const ring = 4 * n;
   const count = (n + 1) * (n + 1) + ring;
   const pos = new Float32Array(count * 3), nor = new Float32Array(count * 3), col = new Float32Array(count * 3), uv = new Float32Array(count * 2);
+  const spl = new Float32Array(count * 6);
   const put = (k, x, z, y) => {
     pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
     const e = 1.5;
@@ -70,7 +82,7 @@ function chunkGeometry(x0, z0, size, step, colorFn) {
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
     const k = j * (n + 1) + i, x = x0 + i * st, z = z0 + j * st, h = heightAt(x, z);
     put(k, x, z, h);
-    colorFn(x, z, h, col, k * 3);
+    surfaceFn(x, z, h, spl, col, k);
   }
   const idx = [];
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
@@ -88,6 +100,7 @@ function chunkGeometry(x0, z0, size, step, colorFn) {
     const k = base + s;
     pos[k * 3] = pos[src * 3]; pos[k * 3 + 1] = pos[src * 3 + 1] - 6; pos[k * 3 + 2] = pos[src * 3 + 2];
     for (let q = 0; q < 3; q++) { nor[k * 3 + q] = nor[src * 3 + q]; col[k * 3 + q] = col[src * 3 + q]; }
+    for (let q = 0; q < 6; q++) spl[k * 6 + q] = spl[src * 6 + q];
     uv[k * 2] = uv[src * 2]; uv[k * 2 + 1] = uv[src * 2 + 1];
   });
   for (let s = 0; s < ring; s++) {
@@ -99,18 +112,25 @@ function chunkGeometry(x0, z0, size, step, colorFn) {
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  const s0 = new Uint8Array(count * 3), s1 = new Uint8Array(count * 3);
+  for (let k = 0; k < count; k++) for (let q = 0; q < 3; q++) { s0[k * 3 + q] = Math.round(spl[k * 6 + q] * 255); s1[k * 3 + q] = Math.round(spl[k * 6 + 3 + q] * 255); }
+  geo.setAttribute('splat0', new THREE.BufferAttribute(s0, 3, true));
+  geo.setAttribute('splat1', new THREE.BufferAttribute(s1, 3, true));
   geo.setIndex(idx);
   geo.computeBoundingSphere();
   geo.computeBoundingBox();
   return geo;
 }
 
-export function buildTerrain(quality = 'high') {
+export function buildTerrain(quality = 'high', terrainTex = null) {
   getHeightfield();
-  const tex = groundDetailTexture();
-  tex.repeat.set(1, 1);
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: tex, roughness: 0.97, metalness: 0 });
-  const colorFn = makeColorFn();
+  let mat;
+  if (terrainTex) mat = createTerrainMaterial(terrainTex);
+  else { // fallback if the texture sets failed to load
+    const tex = groundDetailTexture();
+    mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: tex, roughness: 0.97, metalness: 0 });
+  }
+  const colorFn = makeSurfaceFn();
   const group = new THREE.Group();
   group.name = 'terrain';
   const B = HF_BOUNDS;
