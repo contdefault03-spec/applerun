@@ -29,7 +29,7 @@ export class NPCManager {
     this.layout = game.layout;
     this.npcs = [];
     this.interiorNpcs = [];
-    this.target = game.engine.quality === 'low' ? 16 : game.engine.quality === 'medium' ? 24 : 32;
+    this.target = game.engine.quality === 'low' ? 24 : game.engine.quality === 'medium' ? 36 : 50;
     this.spawnT = 0;
     this.bubbles = [];
     this.active = new Set();
