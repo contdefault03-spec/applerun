@@ -14,6 +14,15 @@ export class Environment {
     sky.scale.setScalar(20000);
     const u = sky.material.uniforms;
     u.turbidity.value = 4; u.rayleigh.value = 1.4; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.85;
+    // haze band: blend the sky into the fog colour at (and below) the horizon so the ocean,
+    // which fades into the fog colour, meets the sky without a visible edge
+    this.horizon = { value: new THREE.Color(0xbfd6ea) };
+    sky.material.onBeforeCompile = (sh) => {
+      sh.uniforms.uHorizon = this.horizon;
+      sh.fragmentShader = 'uniform vec3 uHorizon;\n' + sh.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );',
+        'float hzEl = normalize( vWorldPosition - cameraPosition ).y;\n' +
+        'gl_FragColor = vec4( mix( texColor, uHorizon, 1.0 - smoothstep( -0.01, 0.09, hzEl ) ), 1.0 );');
+    };
     scene.add(sky);
     this.sky = sky;
     this.sun = new THREE.DirectionalLight(0xfff1dc, 3.0);
@@ -72,6 +81,7 @@ export class Environment {
     const fogDay = new THREE.Color(0xbfd6ea), fogDusk = new THREE.Color(0xe0a27a), fogNight = new THREE.Color(0x0c1220);
     const fc = fogNight.clone().lerp(fogDusk, THREE.MathUtils.smoothstep(el, -0.2, 0.05)).lerp(fogDay, THREE.MathUtils.smoothstep(el, 0.05, 0.35));
     this.scene.fog.color.copy(fc);
+    this.horizon.value.copy(fc);
     this.renderer.toneMappingExposure = 0.55 + 0.45 * day;
     const n = this.nightFactor;
     for (const m of this.windowMaterials) m.emissiveIntensity = 1.1 * n;

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+
+const SWIM_LIMIT = 230; // metres past the map edge a swimmer may go (boats may go further)
 import { WATER_LEVEL, WORLD } from '../../shared/map/layout.js';
 import { heightAt } from '../../shared/map/terrain.js';
 
@@ -34,6 +36,15 @@ export class PlayerController {
     if (yaw !== null) this.avatar.yaw = yaw;
   }
 
+  limitToIsland(p) {
+    const cx = THREE.MathUtils.clamp(p.x, WORLD.minX, WORLD.maxX), cz = THREE.MathUtils.clamp(p.z, WORLD.minZ, WORLD.maxZ);
+    const d = Math.hypot(p.x - cx, p.z - cz);
+    if (d <= SWIM_LIMIT) return;
+    const k = SWIM_LIMIT / d;
+    p.x = cx + (p.x - cx) * k; p.z = cz + (p.z - cz) * k;
+    const now = performance.now();
+    if (!this.limitNoticeAt || now - this.limitNoticeAt > 6000) { this.limitNoticeAt = now; this.game.ui?.notify('The current is too strong to swim further out. You would need a boat.', 'info'); }
+  }
   update(dt, cam, { aiming = false, allowMove = true } = {}) {
     const input = this.game.input;
     const col = this.game.world.collision;
@@ -76,11 +87,8 @@ export class PlayerController {
     if (!this.swimming) this.vel.y -= 20 * dt;
     const p = this.pos;
     p.x += this.vel.x * dt; p.z += this.vel.z * dt; p.y += this.vel.y * dt;
-    // world bounds
-    if (!this.interior) {
-      p.x = THREE.MathUtils.clamp(p.x, WORLD.minX + 2, WORLD.maxX - 2);
-      p.z = THREE.MathUtils.clamp(p.z, WORLD.minZ + 2, WORLD.maxZ - 2);
-    }
+    // island limit: no walls on land; out at sea swimmers are turned back a short way out
+    if (!this.interior) this.limitToIsland(p);
     // collisions
     const res = col.resolve(p, this.radius, this.avatar.char.height * (this.crouch ? 0.65 : 1), 0.5, this.ignoreCollider);
     let ground = res.ground;

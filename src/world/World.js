@@ -29,7 +29,8 @@ export class World {
     this.env = new Environment(this.scene, this.engine.renderer, q);
     const terrain = await step('Building terrain…', () => buildTerrain(q));
     this.outdoor.add(terrain);
-    const water = await step('Filling the ocean…', () => buildWater());
+    const water = await step('Filling the ocean…', () => buildWater(this.engine.camera.far));
+    this.water = water;
     this.outdoor.add(water.mesh);
     this.env.waterUniforms = water.uniforms;
     this.waterUniforms = water.uniforms;
@@ -53,6 +54,7 @@ export class World {
   update(dt, focus) {
     this.env.update(dt, focus);
     if (this.waterUniforms) this.waterUniforms.uTime.value += dt;
+    this.water?.follow(this.engine.camera);
     if (this.ferris) {
       this.ferris.rotation.x += dt * 0.08;
       for (const c of this.ferris.children) if (c.userData.cabin !== undefined) c.rotation.x = -this.ferris.rotation.x;

@@ -3,6 +3,9 @@
 // slot far outside the city so interiors never overlap each other or the world.
 export const INTERIOR_BASE = { x: 2600, z: 2600, spacing: 90, cols: 24 };
 
+/** True for points in the far-away interior slot area (never part of the island or sea). */
+export function inInteriorSlots(x, z) { return x > INTERIOR_BASE.x - 300 && z > INTERIOR_BASE.z - 300; }
+
 export function interiorOrigin(buildingId) {
   const i = buildingId | 0;
   return { x: INTERIOR_BASE.x + (i % INTERIOR_BASE.cols) * INTERIOR_BASE.spacing, y: 0, z: INTERIOR_BASE.z + Math.floor(i / INTERIOR_BASE.cols) * INTERIOR_BASE.spacing };
