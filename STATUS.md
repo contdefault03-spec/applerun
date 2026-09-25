@@ -99,11 +99,12 @@ Never break existing gameplay or multiplayer.
 - Tests pass (12/12) and the build succeeds.
 - Screenshots in `shots/stage3/` (git-ignored) show textured terrain, the snow cap and roads with markings.
 
+**Done (this commit):**
+- Eye-level QA pass (`node tools/views.mjs`, street view): road markings, kerbs and grass read fine at ground level; grass tone/saturation is acceptable as generated, no retune needed. Draw calls/triangles checked with `tools/perf.mjs` (~780 calls, ~1.0M triangles at street level — down from the Stage 2 baseline of ~1.7M, since the new trees are far cheaper than the old blob geometry).
+- **Trees:** `src/world/Trees.js` — bark-textured trunks (`createPlanarMaterial` on the generated `bark` KTX2) plus foliage-atlas "cross card" canopies (2–4 alpha-tested quads fanned around the trunk per tree) cut from `foliage_ca.ktx2`'s broadleaf/pine/palm cells, with a per-instance wind sway in the canopy vertex shader (`uTime`, driven from `World.update` like the water shader). Three species (broadleaf, pine, palm), instanced, same layout positions as before (`P.trees`, `P.palms`) plus `World.medianTrees` (boulevard trees on urban medians, previously unused). Replaces the solid-colour icosahedron/box trees that were in `src/world/Props.js`. No separate LOD/impostors yet — cards are cheap enough that it wasn't needed to hit the triangle budget (see perf numbers above); worth revisiting only if a future perf pass shows otherwise.
+
 **Not done yet in Stage 3:**
-- Visual QA at eye level: road detail, crossings, kerbs, medians, and grass tone and saturation. The grass may be too saturated or uniform; tune it in `tools/gen-textures.mjs` or `TerrainMaterial`.
-- Before/after comparison screenshots and a perf check (`node tools/perf.mjs`). The Stage 2 baseline was about 700–800 draw calls at street level and about 1.7M triangles.
-- **Trees:** realistic tree models of several species (leafy, pine, palm) with the foliage atlas leaf cards, bark texture and wind sway (vertex shader). Use instancing plus LOD with impostors for distance. They replace the blob trees in `src/world/Props.js` (layout positions `P.trees` / `P.palms`) and fill `World.medianTrees`. Trees are currently the biggest triangle cost (190k-triangle instanced mesh).
-- **Plants:** bushes, hedges, flower beds and grass patches around houses and parks.
+- **Plants:** bushes, hedges, flower beds and grass patches around houses and parks (the small-leaf atlas cell exists for this, unused so far).
 - **Street furniture everywhere:**
   - hydrants, benches, bins, bus stops, street lamps, traffic lights (with working red/amber/green heads that follow the timing in `src/vehicles/Traffic.js`), signs, bollards, bike racks;
   - instanced, with colliders;

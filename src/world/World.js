@@ -6,6 +6,7 @@ import { buildRoads } from './Roads.js';
 import { buildBuildings } from './Buildings.js';
 import { buildLandmarks } from './Landmarks.js';
 import { buildProps } from './Props.js';
+import { buildTrees } from './Trees.js';
 import { Collision } from './Collision.js';
 import { Environment } from './Environment.js';
 import { mergeStatic, splitByCells } from './mergeStatic.js';
@@ -67,9 +68,14 @@ export class World {
     this.outdoor.add(props.group);
     props.group.traverse((o) => { if (o.userData.lampHeads) this.env.lampMaterials.push(o.material); if (o.userData.bob) this.boats = o; });
     this.trafficLights = props.trafficLights;
+    const trees = await step('Planting trees…', () => buildTrees(this.textures, this.medianTrees));
+    trees.group.traverse((o) => { if (o.isInstancedMesh) o.layers.set(LAYER.MID); });
+    this.outdoor.add(trees.group);
+    this.treeWind = trees.uniforms;
     // Colliders
     for (const c of this.layout.colliders) this.collision.add({ ...c });
     for (const c of props.colliders) this.collision.add(c);
+    for (const c of trees.colliders) this.collision.add(c);
     onProgress('City ready');
   }
 
@@ -77,6 +83,7 @@ export class World {
     this.env.update(dt, focus);
     this.engine.post?.setLook({ exposure: this.env.exposure, night: this.env.nightFactor });
     if (this.waterUniforms) this.waterUniforms.uTime.value += dt;
+    if (this.treeWind) this.treeWind.uTime.value += dt;
     this.water?.follow(this.engine.camera);
     if (this.ferris) {
       this.ferris.rotation.x += dt * 0.08;

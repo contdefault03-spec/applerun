@@ -41,45 +41,8 @@ export function buildProps() {
   const colliders = [];
   const vmat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
   const y = (x, z) => heightAt(x, z);
-
-  // Broadleaf tree (two canopy tones via variation) & pine
-  const broad = mergeGeometries([
-    part(new THREE.CylinderGeometry(0.18, 0.28, 3, 6), '#5b4032', 0, 1.5, 0),
-    part(new THREE.IcosahedronGeometry(2.2, 1), '#3f7a34', 0, 4.2, 0, 0, 0, 0, [1, 0.85, 1]),
-    part(new THREE.IcosahedronGeometry(1.6, 1), '#4d8c3c', 0.9, 5.0, 0.4),
-    part(new THREE.IcosahedronGeometry(1.5, 1), '#467f37', -0.9, 4.8, -0.5),
-  ]);
-  const pine = mergeGeometries([
-    part(new THREE.CylinderGeometry(0.15, 0.25, 2.5, 6), '#4e3629', 0, 1.25, 0),
-    part(new THREE.ConeGeometry(2.1, 3.5, 8), '#2f5d34', 0, 3.6, 0),
-    part(new THREE.ConeGeometry(1.6, 3, 8), '#356a3a', 0, 5.2, 0),
-    part(new THREE.ConeGeometry(1.0, 2.4, 8), '#3b733f', 0, 6.7, 0),
-  ]);
-  const trees = P.trees;
-  const broadItems = [], pineItems = [];
-  for (const t of trees) {
-    const h = y(t.x, t.z);
-    (h > 25 || t.v > 0.7 ? pineItems : broadItems).push({ ...t, y: h });
-    colliders.push({ kind: 'tree', x: t.x, z: t.z, hx: 0.35, hz: 0.35, rot: 0, y0: h - 1, y1: h + 4 });
-  }
-  const placeTree = (o, t) => { o.position.set(t.x, t.y - 0.1, t.z); o.rotation.set(0, t.r, 0); o.scale.setScalar(t.s); };
-  group.add(instanced(broad, vmat, broadItems, placeTree));
-  group.add(instanced(pine, vmat, pineItems, placeTree));
-
-  // Palms
-  const palmParts = [];
-  for (let i = 0; i < 6; i++) {
-    const seg = part(new THREE.CylinderGeometry(0.2 - i * 0.015, 0.24 - i * 0.015, 1.3, 6), i % 2 ? '#8a6d4b' : '#7a5f40', Math.sin(i * 0.4) * 0.3 * i * 0.25, 0.65 + i * 1.25, 0);
-    palmParts.push(seg);
-  }
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
-    const leaf = part(new THREE.BoxGeometry(3.4, 0.05, 0.7), '#3d8b3d', Math.cos(a) * 1.5 + 0.4, 7.4, Math.sin(a) * 1.5, 0, -a, -0.35);
-    palmParts.push(leaf);
-  }
-  const palm = mergeGeometries(palmParts);
-  group.add(instanced(palm, vmat, P.palms.map((t) => ({ ...t, y: y(t.x, t.z) })), placeTree));
-  for (const t of P.palms) colliders.push({ kind: 'tree', x: t.x, z: t.z, hx: 0.3, hz: 0.3, rot: 0, y0: -2, y1: y(t.x, t.z) + 6 });
+  // Trees & palms are built separately (src/world/Trees.js): bark-textured trunks and
+  // foliage-atlas canopy cards with wind sway, instead of solid-colour boxes here.
 
   // Street lamps
   const lampGeo = mergeGeometries([
