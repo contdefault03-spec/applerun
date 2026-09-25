@@ -8,6 +8,7 @@ export const SPECS = {
   sedan: { name: 'Sedan', length: 4.5, width: 1.85, height: 1.45, wheelR: 0.34, wheelBase: 2.7, track: 1.55, maxSpeed: 46, accel: 7.5, brake: 16, steer: 0.55, grip: 7, mass: 1400, seats: 4, colors: ['#b71c1c', '#1565c0', '#eeeeee', '#212121', '#546e7a', '#2e7d32', '#6d4c41', '#c0ca33'] },
   sedan_old: { name: 'Rusty Sedan', length: 4.6, width: 1.85, height: 1.45, wheelR: 0.34, wheelBase: 2.7, track: 1.55, maxSpeed: 38, accel: 5.5, brake: 12, steer: 0.5, grip: 6, mass: 1500, seats: 4, colors: ['#8d6e63', '#78909c', '#9e9d24', '#5d4037', '#607d8b'], rusty: true },
   sports: { name: 'Sports Car', length: 4.4, width: 1.95, height: 1.2, wheelR: 0.35, wheelBase: 2.6, track: 1.65, maxSpeed: 68, accel: 12, brake: 22, steer: 0.5, grip: 9.5, mass: 1300, seats: 2, colors: ['#ff1744', '#ffea00', '#00e5ff', '#76ff03', '#ff9100', '#e0e0e0', '#111111'], low: true },
+  hypercar: { name: 'Scorpio GTX', length: 4.5, width: 2.0, height: 1.05, wheelR: 0.36, wheelBase: 2.65, track: 1.72, maxSpeed: 78, accel: 14, brake: 24, steer: 0.48, grip: 10.5, mass: 1250, seats: 2, colors: ['#e10600', '#f5c400', '#0a3d91', '#0b0b0b', '#e8e8e8'], low: true, wedge: true },
   suv: { name: 'SUV', length: 4.8, width: 2.0, height: 1.85, wheelR: 0.42, wheelBase: 2.85, track: 1.7, maxSpeed: 42, accel: 7, brake: 15, steer: 0.5, grip: 7.5, mass: 2100, seats: 4, colors: ['#263238', '#eceff1', '#3e2723', '#1a237e', '#455a64'], tall: true },
   taxi: { name: 'Taxi', length: 4.6, width: 1.85, height: 1.5, wheelR: 0.34, wheelBase: 2.75, track: 1.55, maxSpeed: 44, accel: 7, brake: 16, steer: 0.55, grip: 7, mass: 1450, seats: 4, colors: ['#ffc400'], taxi: true },
   police: { name: 'Police Cruiser', length: 4.8, width: 1.9, height: 1.5, wheelR: 0.35, wheelBase: 2.85, track: 1.6, maxSpeed: 58, accel: 10, brake: 20, steer: 0.55, grip: 8.5, mass: 1600, seats: 4, colors: ['#f5f5f5'], police: true, siren: 'police' },
@@ -58,11 +59,11 @@ export const lightMats = {
 };
 
 /** Build a vehicle model. Returns { group, wheels: [{obj, front, x, z}], lightbar: [meshes], seatLocal: [...] } */
-export function buildVehicle(type, color) {
+export function buildVehicle(type, color, accent = null) {
   const s = SPECS[type] || SPECS.sedan;
-  const key = type + color;
+  const key = type + color + (accent || '');
   let parts = cache.get(key);
-  if (!parts) { parts = buildParts(type, s, color); cache.set(key, parts); }
+  if (!parts) { parts = buildParts(type, s, color, accent); cache.set(key, parts); }
   const group = new THREE.Group();
   const body = new THREE.Mesh(parts.body, bodyMat); body.castShadow = true; body.receiveShadow = true;
   const matte = new THREE.Mesh(parts.matte, matteMat); matte.castShadow = true;
@@ -88,7 +89,7 @@ export function buildVehicle(type, color) {
   return { group, wheels, lights, spec: s };
 }
 
-function buildParts(type, s, color) {
+function buildParts(type, s, color, accent) {
   const L = s.length, W = s.width, H = s.height, R = s.wheelR;
   const body = [], matte = [], glass = [], head = [], tail = [], red = [], blue = [];
   const dark = '#1f1f1f', interior = '#2b2b2b', seat = '#3e2723', chrome = '#9e9e9e';
@@ -137,10 +138,11 @@ function buildParts(type, s, color) {
     // bumpers
     matte.push(bx(W + 0.04, 0.2, 0.18, 0, y0 + 0.12, L / 2 + 0.02, dark), bx(W + 0.04, 0.2, 0.18, 0, y0 + 0.12, -L / 2 - 0.02, dark));
     const cabBottom = y0 + bodyH, cabTop = H;
-    const cz0 = s.low ? -L * 0.28 : -L * 0.32, cz1 = s.low ? L * 0.12 : L * 0.2;
-    const tz0 = s.low ? -L * 0.18 : s.tall ? -L * 0.34 : -L * 0.22, tz1 = s.low ? L * -0.02 : s.tall ? L * 0.1 : L * 0.05;
+    const cz0 = s.wedge ? -L * 0.16 : s.low ? -L * 0.28 : -L * 0.32, cz1 = s.wedge ? L * 0.2 : s.low ? L * 0.12 : L * 0.2;
+    const tz0 = s.wedge ? -L * 0.06 : s.low ? -L * 0.18 : s.tall ? -L * 0.34 : -L * 0.22, tz1 = s.wedge ? L * 0.1 : s.low ? L * -0.02 : s.tall ? L * 0.1 : L * 0.05;
+    const topWFrac = s.wedge ? 0.76 : 0.86;
     body.push(bx(W * 0.9, 0.06, tz1 - tz0, 0, cabTop, (tz0 + tz1) / 2, color));
-    glass.push(cabin(W * 0.94, cabBottom, cabTop, cz0, cz1, tz0, tz1, '#000', W * 0.86));
+    glass.push(cabin(W * 0.94, cabBottom, cabTop, cz0, cz1, tz0, tz1, '#000', W * topWFrac));
     // pillars
     for (const sx of [-1, 1]) matte.push(bx(0.06, cabTop - cabBottom, 0.1, sx * W * 0.45, (cabBottom + cabTop) / 2, (cz0 + tz0) / 2, color));
     // interior: seats, dash, steering wheel
@@ -164,6 +166,11 @@ function buildParts(type, s, color) {
       matte.push(bx(W * 0.8, 0.35, 0.06, 0, y0 + 0.35, L / 2 + 0.12, '#111')); // push bar
     }
     if (s.rusty) for (let i = 0; i < 5; i++) matte.push(bx(0.02, 0.2 + i * 0.03, 0.3, (i % 2 ? 1 : -1) * (W / 2 + 0.005), y0 + 0.25, -L / 3 + i * 0.5, '#6d3b1d'));
+    if (accent && !s.taxi && !s.police) {
+      // a racing stripe (or two-tone roof) down the centreline, from the nose over the roof
+      matte.push(bx(W * 0.22, bodyH + 0.02, L * 0.94, 0, y0 + bodyH + 0.005, 0, accent));
+      matte.push(bx(W * 0.5, 0.05, tz1 - tz0 + 0.02, 0, cabTop + 0.01, (tz0 + tz1) / 2, accent));
+    }
   }
   const merge = (arr) => (arr.length ? mergeGeometries(arr) : null);
   const lights = {};

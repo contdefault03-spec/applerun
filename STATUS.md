@@ -139,15 +139,12 @@ Never break existing gameplay or multiplayer.
 - **Ski resort:** a new `resort` landmark footprint (`shared/map/layout.js`) near the peak, with the terrain flattened to a plateau at its natural (non-sea-level) height (`shared/map/terrain.js`) so the lodge doesn't sit on a slope. `src/world/Landmarks.js` builds a wood-and-glass lodge, two lift towers, a cable, and 6 gondola cabins that ping-pong back and forth along it (`World.update`, `this.skilifts`) — visual only, not rideable, as the brief allows. Snowy slopes were already there from Stage 3's height/slope-blended snow.
 - **Hotel:** a `hotel` building (assigned near the pier/beachfront, `Buildings.js` sign "SEABREEZE HOTEL") with an interior (`InteriorManager.js`) combining a reception (pay $60 to check in, server-validated in `server/rooms.js` / `shared/economy.js` like the hospital/repair rewards), a small restaurant corner (buy room service for health) and a decorated room. The room's "sleep & save" interaction only works once checked in (`Game.js` `hotelCheckin`/`hotelroom`); the "room key" is a session flag (`game.hotelCheckedIn`), not a persisted item.
 
-### Stage 7: cars
-- Replace the box cars with realistic models:
-  - supercars inspired by famous Italian, German and French hypercars and sports cars;
-  - luxury sedans, SUVs, hatchbacks, taxis, police, ambulance, vans, trucks and motorcycles;
-  - invented names only, no logos.
-- Many paint colours, some two-tone or with stripes.
-- Keep the existing driving physics, but tune handling per car class: supercars fast and grippy, trucks slow and heavy.
-- Working headlights, brake lights and indicators, and a visible interior.
-- Traffic uses the new models with a realistic mix: mostly normal cars, rare supercars.
+### Stage 7: cars (mostly already done — small addition this pass)
+- **Already in place before this pass** (found, not newly built): `src/vehicles/VehicleModels.js` procedurally builds a distinct low-poly model per class (sedan, rusty sedan, sports, SUV, taxi, police, ambulance, van, box truck, motorcycle), each with a visible interior (seats, dash, steering wheel), headlights/tail-lights, and police/taxi/ambulance-specific detailing (light bars, checker stripe, red-cross panels). Handling is already tuned per class in `SPECS` (sports car: `accel 12, grip 9.5`; truck: `accel 4.2, grip 6, mass 7000`). `Traffic.js` already spawns a realistic weighted mix (sedans common, sports/police rarer) with multiple paint colours per class. Invented names only (no real logos or brand badges) throughout.
+- **New this commit:**
+  - A second, distinct supercar class, `hypercar` ("Scorpio GTX" — an invented name): lower (1.05 m), wider-track, sharper "wedge" cabin proportions (`s.wedge` flag reshapes the greenhouse — shorter cabin set further back, lower windscreen) than the existing generic `sports` class, and the fastest/grippiest spec (`maxSpeed 78, accel 14, grip 10.5`). Added to `Traffic.js`'s weighted mix at a low weight (rare, as required).
+  - **Two-tone / stripe paint:** `buildVehicle(type, color, accent)` now takes an optional accent colour and adds a centre racing stripe over the hood/roof; `Traffic.js` gives ~30% of sedans/sports/hypercars a contrasting stripe (white/black/gold) picked per spawn.
+- **Not done:** turn indicators (headlights/tail-lights exist and already react to night/braking, but no left/right blinker state); more supercar/luxury-sedan body variety beyond the two sports-class shapes; a player-facing car dealer/customisation UI (cars are currently obtained by carjacking, same as before this stage).
 - Notes: `src/vehicles/VehicleModels.js` (SPECS, `buildVehicle`), `Vehicle.js`, `VehicleManager.js`, `Traffic.js`.
 
 ### Stage 8: the pier and amusement park

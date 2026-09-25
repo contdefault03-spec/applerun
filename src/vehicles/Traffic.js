@@ -4,7 +4,7 @@ import { heightAt } from '../../shared/map/terrain.js';
 
 // Client-side AI traffic following lanes on the shared road graph, obeying traffic
 // lights, keeping distance, braking for pedestrians and reacting to collisions.
-const TYPES = [['sedan', 30], ['suv', 14], ['taxi', 10], ['van', 8], ['truck', 5], ['sedan_old', 10], ['sports', 7], ['motorcycle', 6], ['police', 4]];
+const TYPES = [['sedan', 30], ['suv', 14], ['taxi', 10], ['van', 8], ['truck', 5], ['sedan_old', 10], ['sports', 7], ['hypercar', 2], ['motorcycle', 6], ['police', 4]];
 const TOTAL_W = TYPES.reduce((s, t) => s + t[1], 0);
 const SIGNAL_GREEN = new THREE.Color('#2e7d32'), SIGNAL_AMBER = new THREE.Color('#f9a825'), SIGNAL_RED = new THREE.Color('#c62828');
 
@@ -56,7 +56,9 @@ export class Traffic {
     const pool = this.pools.get(type) || [];
     if (pool.length) return pool.pop();
     const s = SPECS[type];
-    return buildVehicle(type, s.colors[Math.floor(Math.random() * s.colors.length)]);
+    const color = s.colors[Math.floor(Math.random() * s.colors.length)];
+    const accent = (type === 'sports' || type === 'sedan' || type === 'hypercar') && Math.random() < 0.3 ? ['#ffffff', '#111111', '#f5c400'][Math.floor(Math.random() * 3)] : null;
+    return buildVehicle(type, color, accent);
   }
   release(car) {
     this.game.engine.scene.remove(car.m.group);
