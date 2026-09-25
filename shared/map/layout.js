@@ -739,6 +739,8 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, grap
   boats.push({ x: wx(60), z: wz(575), rot: 0.2, s: 2.2, c: 0 });
   boats.push({ x: wx(40), z: wz(690), rot: 1.2, s: 1.3, c: 1 });
   boats.push({ x: wx(900), z: wz(870), rot: 0.2, s: 2.5, c: 2, ship: true });
+  // Moored at the very end of the pier: where the fishing mission (Stage 9) will start
+  boats.push({ x: wx(88), z: wz(543), rot: Math.PI / 2, s: 1.6, c: 1, fishing: true });
   // Graffiti on rough buildings
   for (const b of buildings) {
     if (b.type === 'rough_apartment' || b.type === 'rough_house' || (b.type === 'warehouse' && rand() < 0.4)) graffiti.push({ b: b.id, v: Math.floor(rand() * 6) });

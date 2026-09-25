@@ -64,8 +64,9 @@ export class World {
     this.outdoor.add(lmk);
     lmk.traverse((o) => { if (o.userData.ferris) this.ferris = o; if (o.userData.spin) this.animated.push(o); if (o.userData.lamp) this.env.lampMaterials.push(o.material); });
     this.skilifts = lmk.userData.skilifts || [];
+    this.coasterCars = lmk.userData.coasterCars || [];
     // static landmark parts → a few merged meshes per material and area (far fewer draw calls)
-    this.mergeStats = mergeStatic(lmk, { keep: (o) => o.userData.ferris || o.userData.spin || o.userData.keep || o.userData.skilift });
+    this.mergeStats = mergeStatic(lmk, { keep: (o) => o.userData.ferris || o.userData.spin || o.userData.keep || o.userData.skilift || o.userData.coaster });
     const props = await step('Planting trees…', () => buildProps());
     props.group.traverse((o) => { if (o.isInstancedMesh) o.layers.set(LAYER.MID); });
     this.outdoor.add(props.group);
@@ -106,6 +107,15 @@ export class World {
         const { a, b, phase } = cab.userData.skilift;
         const t = Math.abs((((this.liftT + phase) % 2) - 1)); // ping-pong 0..1..0
         cab.position.lerpVectors(a, b, t);
+      }
+    }
+    if (this.coasterCars?.length) {
+      this.coasterT = (this.coasterT || 0) + dt * 0.045;
+      for (const car of this.coasterCars) {
+        const { curve, t0 } = car.userData.coaster;
+        const t = (t0 + this.coasterT) % 1;
+        car.position.copy(curve.getPointAt(t));
+        car.lookAt(curve.getPointAt((t + 0.01) % 1));
       }
     }
   }

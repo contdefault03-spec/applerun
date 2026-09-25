@@ -147,15 +147,15 @@ Never break existing gameplay or multiplayer.
 - **Not done:** turn indicators (headlights/tail-lights exist and already react to night/braking, but no left/right blinker state); more supercar/luxury-sedan body variety beyond the two sports-class shapes; a player-facing car dealer/customisation UI (cars are currently obtained by carjacking, same as before this stage).
 - Notes: `src/vehicles/VehicleModels.js` (SPECS, `buildVehicle`), `Vehicle.js`, `VehicleManager.js`, `Traffic.js`.
 
-### Stage 8: the pier and amusement park
-- Make the pier a busy destination: food stalls, shops, an arcade, people walking, benches and lamps.
-- Amusement park on the pier:
-  - a ferris wheel that spins;
-  - a roller coaster with cars running around the track (animated; rideable not required);
-  - a carousel.
-- Houses and cafés you can enter along the pier, and a party at the end (music, dancing NPCs, lights).
-- At the very end of the pier, a moored boat where the fishing mission starts (Stage 9).
-- Notes: pier landmarks are `pier` and `pierEnd` in the layout. There is already a ferris wheel in `src/world/Landmarks.js`.
+### Stage 8: the pier and amusement park (amusement park done; pier "destination" feel partial)
+- **Amusement park, done this commit** (`src/world/Landmarks.js`, animated in `World.update`):
+  - Ferris wheel — already existed.
+  - **Carousel:** platform + canopy + 8 horses on poles, spinning as one group (reuses the existing generic `userData.spin` handling).
+  - **Roller coaster:** a closed `CatmullRomCurve3` loop around the ferris wheel plaza with support posts, and 3 cars that run around it continuously (`World.coasterCars`, excluded from static merging like the ski lift cabins) — animated, not rideable, as the brief allows.
+  - A few food stalls added along the pier deck.
+- **Fishing-mission boat:** a moored boat is now placed at the very end of the pier (`shared/map/layout.js` `props.boats`, flagged `fishing: true`) so Stage 9 has something to hook into. Stage 9 itself (the mission) is not started.
+- **Not done:** an arcade on the pier; enterable houses/cafés specifically *along the pier* (the general building/interior system from Stages 4–5 covers houses/cafés elsewhere in the city, but none were added to the pier itself); a party at the end (music/dancing NPCs/lights — the nightclub built for Stage 5 covers the "one venue with lights + music + crowd" idea, but not on the pier); confirmation that pedestrian NPCs actually walk the pier (not verified this pass).
+- Notes: pier landmarks are `pier` and `pierEnd` in the layout.
 
 ### Stage 9: fishing mission (multiplayer)
 - **Start:** standing at the boat, press E. A 20-second countdown starts, and every player near the boat during that time joins the mission.

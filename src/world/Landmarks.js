@@ -205,6 +205,56 @@ export function buildLandmarks() {
     g.add(wheel);
     g.add(box(0.8, 12, 0.8, steel, e.x - 2, 6, e.z - 2, 0), box(0.8, 12, 0.8, steel, e.x - 2, 6, e.z + 2, 0));
     g.add(box(4, 3, 4, M('#f6f1e7'), e.x + 8, 2.4, e.z + 10), box(4.6, 0.3, 4.6, M('#e53935'), e.x + 8, 4.05, e.z + 10));
+
+    // Carousel
+    {
+      const carousel = new THREE.Group();
+      carousel.add(new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.4, 20), M('#f2e2c4')));
+      const canopy = new THREE.Mesh(new THREE.ConeGeometry(6, 3, 16), M('#e53935'));
+      canopy.position.y = 4.2; canopy.castShadow = true; carousel.add(canopy);
+      const poleCols = ['#ff6b6b', '#4d96ff', '#6bcb77', '#ffd93d'];
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        carousel.add(box(0.08, 3, 0.08, steel, Math.cos(a) * 4, 1.8, Math.sin(a) * 4, 0, false));
+        const horse = box(0.4, 0.8, 1.3, M(poleCols[i % 4]), Math.cos(a) * 4, 0.9, Math.sin(a) * 4);
+        horse.rotation.y = a; carousel.add(horse);
+      }
+      carousel.position.set(e.x + 9, heightAt(e.x + 9, e.z - 10) + 0.2, e.z - 10);
+      carousel.userData.spin = true;
+      g.add(carousel);
+    }
+    // Roller coaster: a closed loop, 3 cars running around it (visual only)
+    {
+      const cx = e.x - 2, cz = e.z, pts = [];
+      const N = 16;
+      for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2; pts.push(new THREE.Vector3(cx + Math.cos(a) * 17, 12.5 + Math.sin(a * 2) * 3, cz + Math.sin(a) * 24)); }
+      const curve = new THREE.CatmullRomCurve3(pts, true);
+      const track = new THREE.Mesh(new THREE.TubeGeometry(curve, 200, 0.22, 6, true), steel);
+      track.castShadow = true; g.add(track);
+      for (let i = 0; i < N; i += 2) { const p = curve.getPointAt(i / N); g.add(box(0.2, Math.max(0.5, p.y - 0.2), 0.2, steel, p.x, p.y / 2, p.z, 0, false)); }
+      const coasterCars = [];
+      const carCols = ['#ff6b6b', '#4d96ff', '#6bcb77'];
+      for (let i = 0; i < 3; i++) {
+        const car = box(1.2, 0.7, 1.8, M(carCols[i]), 0, 0, 0);
+        car.userData.coaster = { curve, t0: i / 3 };
+        g.add(car);
+        coasterCars.push(car);
+      }
+      g.userData.coasterCars = coasterCars;
+    }
+    // Food stalls and benches along the pier deck
+    {
+      const p2 = lm.pier;
+      const stallCols = ['#e53935', '#fb8c00', '#43a047'];
+      for (let i = 0; i < 4; i++) {
+        const t = (i + 0.5) / 4, x = p2.x - p2.hx + t * p2.hx * 2, side = i % 2 ? 1 : -1;
+        const stall = new THREE.Group();
+        stall.add(box(2.2, 1.4, 1.4, M('#f6f1e7'), 0, 0.9, 0));
+        stall.add(box(2.6, 0.15, 1.8, M(stallCols[i % 3]), 0, 1.75, -0.2));
+        stall.position.set(x, heightAt(x, p2.z + side * (p2.hz - 1)), p2.z + side * (p2.hz - 1));
+        g.add(stall);
+      }
+    }
   }
 
   // ---------------- Mountain ski resort: lodge + chairlift with moving cabins
