@@ -201,9 +201,37 @@ Never break existing gameplay or multiplayer.
 - Verified end-to-end in a scripted check: god mode blocks `damageSelf`, fly mode moves at the slider speed with no gravity, "give weapons" populates `profile.weapons`, teleport lands within 1 m of the target, and the panel opens/closes cleanly.
 - Notes: `src/systems/AdminMenu.js`, `src/player/PlayerController.js` (`updateFly`), `server/rooms.js` (`cheat` request, `Room.cheats`, `applyDamage`'s `godMode` check), `src/ui/UIManager.js` (create-room checkbox).
 
-### Finish
-- Update `README.md`, `STATUS.md`, `CLAUDE.md` and `CREDITS.md`.
-- Give the owner a list of what's done, what's partial, and any files they need to provide.
+### Finish — done
+- `README.md`, `STATUS.md` and `CLAUDE.md` updated to reflect this pass (`CREDITS.md` was already current). `CLAUDE.md` didn't exist before; added a short pointer for future sessions to read `STATUS.md` first.
+
+## Owner summary: what's done, what's partial, what's needed
+
+All 14 stages now have real, tested work landed (one commit per sub-part, pushed to
+`claude/sleepy-edison-fy6ywm`). Fully done: **Stage 0** (bug fixes), **1** (island), **2**
+(lighting/atmosphere), **3** (terrain/roads/trees/plants/street furniture), **6** (ski resort +
+hotel), **8** (amusement park), **13** (M/K maps), **14** (admin menu). Substantially done with
+specific gaps noted in each stage's section above: **4** (buildings — glass interior shader done,
+true random-lit windows and walkable office floors not), **5** (interiors — most building types
+already existed, added the nightclub; several Stage-5-only types like cinema/clinic/bank/arcade
+don't exist), **7** (cars — added a second supercar class + two-tone paint; no turn indicators or
+dealer UI), **9** (fishing mission — full join→sail→catch→payout loop works, but no rod model,
+synced cutscene, or real fish model), **10** (combat — rules/economy were already CS-style; added
+the Tab scoreboard; the arena is still an empty bounding box, no grenades), **11**/**12**
+(football/basketball — football gained real ball possession; both AIs were already reasonably
+good and weren't otherwise changed).
+
+**Files the owner needs to provide:** none new. Everything built this pass is procedural (code-
+generated textures, models and audio) or reuses assets already in the repo (`ajan.mp3`,
+`fish.mp3`, the character rigs). The Khronos `BarramundiFish` glTF sample (CC0) would upgrade the
+fishing mission's placeholder splash into a real tuna model, but that's an enhancement, not a
+blocker — nothing currently depends on a file the owner hasn't supplied.
+
+**Suggested next priorities**, roughly in order of value for effort: (1) a real combat arena map —
+the single most visible remaining gap, since matches currently happen in an empty box; (2) the
+extra Stage 5 interior types (cinema, clinic/pharmacy, bank) since the interior-generation
+machinery to add them already exists; (3) per-window random night lighting on buildings (needs
+restructuring wall geometry to one quad per bay); (4) the fishing mission's cinematic polish (rod
+model, synced camera cut, real fish model).
 
 ## Useful tools
 | Command | What it does |

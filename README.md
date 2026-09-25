@@ -38,11 +38,14 @@ Useful URL parameters:
 | Fire / aim | Left mouse / right mouse |
 | Toggle first / third person | C |
 | Chat | T |
-| Map / phone / inventory & player list | M / P / Tab |
+| Simple map / detailed zoomable map / phone / inventory & player list | M / K / P / Tab |
 | Emote / horn | B / H |
+| Admin / debug menu (host-only or "cheats allowed" rooms) | 9 |
 | Pause | Esc |
 
 Pressing **E while looking at another player playing Ajan** plays `ajan.mp3` for everyone nearby. It never triggers on yourself.
+
+Press **E at the boat moored at the end of the pier** to start the fishing mission: a 20 s join window, a ~500 m trip out to sea, and after a wait only the player playing **Ajan** can grab the catch — see "Fishing mission" under Feature status.
 
 ## Characters
 
@@ -131,36 +134,44 @@ What was verified during development (headless Chromium and the automated tests)
 - all three sports in solo play
 
 ### Implemented
-- **Map and buildings:** city generated from the reference map (districts, roads, landmarks, water, terrain). Every building has an enterable modular interior; the type-specific ones are gun store, hospital, police station, houses, shops, garage and Dome arena.
+- **Map and buildings:** the whole island is generated from the reference map — districts, roads with real PBR markings/kerbs/manholes, terrain textured and blended by height/slope, and an endless ocean past the coastline. Trees (broadleaf/pine/palm, bark trunks, wind-swayed foliage cards), bushes/hedges/flower beds, and street furniture (lamps, benches, hydrants, bins, bollards, bike racks, bus stops, working red/amber/green traffic lights) fill it in. Houses/villas have a real paint palette, 3D balconies, garden fences; skyscraper glass fakes room interiors per window. Every building has an enterable modular interior — house, apartment, shop, restaurant/bar, **nightclub** (disco floor, DJ booth, positional club beat), gun store, police, hospital, gym, garage, office, warehouse, **hotel** (check in, room service, sleep & save), and the Dome arena.
 - **Characters and cameras:** 7 playable characters plus varied NPC pedestrians, procedural animation, first- and third-person cameras, full control rebinding.
 - **Multiplayer and social:** WebSocket multiplayer with interpolation, name tags, chat, room codes and invite links. Proximity WebRTC voice on V uses HRTF spatialisation and distance falloff.
-- **Combat:** CS-style rooms from 1v1 to 5v5 plus custom sizes, with teams, ready-up and round flow. The weapon set (fists, knife, three pistols, AK-47, M4A1, two snipers, plus armor and medkits) uses server-side hit validation.
-- **Sports:** football, basketball and wrestling, with AI opponents and teammates.
+- **Combat:** CS-style rooms from 1v1 to 5v5 with teams, ready-up, buy phase, per-round match money, kill/win/loss bonuses, out-of-bounds enforcement, and a Tab scoreboard (kills/deaths/money). The weapon set (fists, knife, three pistols, AK-47, M4A1, two snipers, plus armor and medkits) uses server-side hit validation.
+- **Sports:** football (real ball possession — it sticks to your feet until you pass/shoot/get tackled), basketball (man-to-man marking, spacing, no ball-swarming) and wrestling, all with AI opponents and teammates.
 - **Vehicles and jobs:**
-  - drivable cars and AI traffic, which includes police cruisers
-  - headlights at night, car damage and garage repairs
-  - taxi job
+  - drivable cars, a second "wedge" supercar class, two-tone/stripe paint, and a drivable **boat** (simplified floating physics)
+  - AI traffic including police cruisers, headlights at night, car damage and garage repairs
+  - taxi job, the fishing mission (boat trip, catch, Ajan-only grab, server-paid reward)
   - police with wanted levels and arrests; ambulances, the hospital and a paramedic job
+- **The mountain and pier:** a ski resort (lodge, two lift towers, animated gondola cabins) near the snow line; a pier amusement park (ferris wheel, spinning carousel, animated roller-coaster loop, food stalls) with a moored boat at the end for the fishing mission.
+- **Maps:** M (simple survival icons) and K (detailed, zoomable/pannable, every named shop/restaurant/office/landmark), both click-to-set-waypoint.
+- **Admin/debug menu (key 9):** god mode, fly mode, give weapons, heal, teleport-to-place, clear wanted — server-gated to the room host or "cheats allowed" rooms.
 - **World life:**
   - NPCs wander, sit on benches, go into buildings, react and flee
   - random events
   - Gemini NPC conversations with memory and a fallback
 - **Economy and persistence:** money rewards, inventory, gun stores validated on the server, buying a house and placing furniture. Everything saves to the server store, which is file-based or Firestore.
-- **Presentation:** day/night cycle, sound system with volume buses, menus, HUD, phone, map and settings.
+- **Presentation:** day/night cycle with cascaded shadows and height fog, sound system with volume buses, menus, HUD, phone, map and settings.
 
 ### Partial
 - Ambient NPCs and AI traffic are simulated separately on each client, so different players see different pedestrians. Players, player-driven vehicles, matches and economy are synced.
-- Combat bots exist only in solo practice. Online matches are player-vs-player.
+- Combat bots exist only in solo practice; the physical arena map is still just an invisible bounding box (see `STATUS.md` Stage 10); no grenades.
+- Football/basketball off-ball movement uses fixed spacing spots, not dynamic cuts.
+- The fishing mission has no modelled rod/bobber, no synced cinematic camera cutscene, and no fish model (a particle splash + sound stand in).
 - Football has no "switch controlled player" button. You control your own avatar and AI plays the rest.
 - Characters wear painted and deformed outfits on the supplied rigs rather than separately modelled clothing meshes.
 - Animations are procedural. The supplied models have no animation clips.
 - The Firestore backend is implemented but was only tested against the file store here, since no service account was available.
+- Stage 5's extra building types (cinema, clinic/pharmacy, bank, arcade, dentist, barber) and per-house furniture-layout variety aren't built — see `STATUS.md` for the full stage-by-stage breakdown of what's done vs. open.
 
 ### Remaining / ideas
 - Server-synced pedestrians and traffic.
-- Draw-call reduction through more instancing and merged buildings (currently about 650 draw calls).
+- A real modelled combat arena map (currently an empty bounding box) and grenades.
+- Draw-call reduction through more instancing and merged buildings.
 - Mobile touch controls.
 - Anti-cheat beyond the current speed, hit, ammo and economy checks.
+- See `STATUS.md` for the complete, stage-by-stage list of what's done, partial, or not started — it's kept up to date as the single source of truth for in-progress work.
 
 ## Assets
 
