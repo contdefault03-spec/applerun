@@ -117,17 +117,14 @@ Never break existing gameplay or multiplayer.
 - Realistic tree models of several species (leafy trees, pines, palms) with proper leaf textures and wind sway. Bushes, hedges, flower beds and grass patches around houses and parks. **Done** (`src/world/Trees.js`, `Plants.js`, `Foliage.js`).
 - Boulevards with tree rows down the middle, and street furniture everywhere: hydrants, benches, bins, bus stops, street lamps, traffic lights, signs, bollards, bike racks. **Done** (median trees now planted; furniture in `Props.js`; working traffic-light heads in `Traffic.js`).
 
-### Stage 4: buildings
-- **Houses:** varied, colourful facades (different paint colours, brick, render), coloured balconies with railings and plants, different roof shapes, fences, gardens and driveways. No two neighbouring houses should look the same.
-- **Apartment blocks:** balconies with details (plants, chairs, laundry) and varied colours.
-- **Skyscrapers:**
-  - Office towers with glass facades where you can see inside.
-  - Use an interior-mapping shader for distant windows (fake rooms with desks, lights and people silhouettes).
-  - Use real modelled office floors for the lower floors you can walk into.
-- **Night:** random windows lit, neon signs on shops, clubs and pubs.
+### Stage 4: buildings (mostly done)
+- **Houses:** `src/world/Buildings.js` — a pastel paint palette (`HOUSE_PALETTE`) is multiplied over the render/siding facade texture per building (was a near-grayscale tint before, now genuinely colourful), and ~30% of houses use the brick facade instead, so neighbours read as different materials as well as different colours. Roofs: gables (5 tile colours) for most, a flat-roof-with-parapet alternative for the rest (shape variety, `PITCHED` branch). Fences: new `shared/map/layout.js` `props.fences` — a low rail around the garden perimeter with a gap left on the door side, rendered in `src/world/Props.js`. Gardens/driveways: bushes/flowers from Stage 3's `Plants.js` plus the existing parked-car driveway spawns already cover this. **Done.**
+- **Apartment blocks / balconies:** `addBalconies()` in `Buildings.js` adds real 3D floor-slab + railing balconies (not just a texture line) on a random subset of bays on every upper floor, for `apartment`-style buildings and for houses/villas tall enough to have a second floor. No plants/chairs/laundry detail on them yet — flagged below.
+- **Skyscrapers:** the `glass` facade material now has an interior-mapping fragment shader (`onBeforeCompile` in `Buildings.js`): each window cell (`fract(vMapUv)` = per-bay-per-floor local UV) fakes a little room — floor/ceiling gradient, a desk-height band, a random ceiling light strip, and an occasional person-silhouette blob, all from a per-cell hash, no textures needed. Reads well in daylight (see QA screenshot); at night the existing flat per-building window-glow emissive (`Environment.js`, `0.35 × night`) still washes it out into a uniform glow — that's the pre-existing "solid grid" stopgap, not yet fixed (see note below). Real modelled/walkable lower office floors: **not done** — that's an interior-generation job, deferred to Stage 5's interior kit rather than duplicated here.
+- **Night:** neon shop/club/pub signs (`SIGNS` table) now pulse from a dim daytime glow to a bright neon look at night via a new `Environment.neonMaterials` array (`0.15 + 1.1 × night`), instead of a fixed intensity day and night. "Random windows lit" (as opposed to the whole building glowing uniformly) is still the one open item — the facade texture is one repeating tile per style, so every window on a building currently lights the same; doing real per-window randomness needs one quad per bay instead of one per wall face, which is a bigger geometry change than this pass covered.
 - Notes:
   - Buildings are in `src/world/Buildings.js`: facades merged per style, then split into 200 m cells in `World.js`.
-  - Glass towers currently glow as solid grids at night (window emissive is turned down to 0.35 × night as a stopgap).
+  - Glass towers still glow as solid grids at night (window emissive at `0.35 × night`, uniform per building) — the interior-mapping shader improves the *daytime* look; true random-lit-windows at night is the remaining piece of this stage.
 
 ### Stage 5: interiors everywhere, all different
 - Every enterable building must be decorated and look different. Build a large interior kit (many furniture sets, wall colours, floors, decorations) and generate varied rooms from it.

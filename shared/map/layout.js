@@ -832,6 +832,23 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, grap
     const b = L[key];
     for (let i = 0; i < 40; i++) plants.push({ x: b.x + (rand() - 0.5) * b.hx * 1.8, z: b.z + (rand() - 0.5) * b.hz * 1.8, r: rand() * 6.28, s: 0.6 + rand() * 0.6, kind: rand() < 0.35 ? 'flower' : 'grass' });
   }
+  // Garden fences around houses: the perimeter at a small setback, with a gap on the door side
+  for (const b of buildings) {
+    if (!houseTypes.has(b.type)) continue;
+    const fx0 = b.hx + 2.0, fz0 = b.hz + 2.0;
+    const c = Math.cos(b.rot), s = Math.sin(b.rot);
+    const W2 = (lx, lz) => [b.x + lx * c + lz * s, b.z - lx * s + lz * c];
+    const corners = [W2(-fx0, -fz0), W2(fx0, -fz0), W2(fx0, fz0), W2(-fx0, fz0)];
+    const [dfx, dfz] = b.face;
+    const doorWx = dfx * c + dfz * s, doorWz = -dfx * s + dfz * c;
+    for (let i = 0; i < 4; i++) {
+      const [ax, az] = corners[i], [bx, bz] = corners[(i + 1) % 4];
+      const mx = (ax + bx) / 2 - b.x, mz = (az + bz) / 2 - b.z;
+      const mlen = Math.hypot(mx, mz) || 1;
+      if ((mx * doorWx + mz * doorWz) / mlen > 0.7) continue; // gap for the path to the door
+      fences.push({ x1: ax, z1: az, x2: bx, z2: bz });
+    }
+  }
   return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants, bollards, bikeRacks, busStops, signs };
 }
 function tryTreeFree(arr, x, z, rand) { arr.push({ x, z, s: 0.8 + rand() * 0.6, r: rand() * 6.28, v: rand() }); }

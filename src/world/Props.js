@@ -191,6 +191,16 @@ export function buildProps() {
   group.add(instanced(signGeo, vmat, signItems, (o, s) => { o.position.set(s.x, s.y, s.z); o.rotation.set(0, s.rot, 0); o.scale.setScalar(1); }));
   for (const s of signItems) colliders.push({ kind: 'pole', x: s.x, z: s.z, hx: 0.1, hz: 0.1, rot: 0, y0: -1, y1: s.y + 2.4 });
 
+  // Garden fences (low picket rail, gap left at the door side by the layout)
+  const fenceGeo = new THREE.BoxGeometry(1, 1.0, 0.07);
+  fenceGeo.translate(0.5, 0.5, 0);
+  const fenceItems = P.fences.map((f) => {
+    const dx = f.x2 - f.x1, dz = f.z2 - f.z1, len = Math.hypot(dx, dz);
+    return { x: f.x1, z: f.z1, len, rot: Math.atan2(dx, dz), y: y(f.x1, f.z1) + 0.1 };
+  });
+  group.add(instanced(fenceGeo, M('#e8e4da'), fenceItems, (o, f) => { o.position.set(f.x, f.y, f.z); o.rotation.set(0, f.rot, 0); o.scale.set(f.len, 1, 1); }, false));
+  for (const f of fenceItems) colliders.push({ kind: 'small', x: f.x + Math.sin(f.rot) * f.len / 2, z: f.z + Math.cos(f.rot) * f.len / 2, hx: Math.abs(Math.sin(f.rot)) * f.len / 2 + 0.1, hz: Math.abs(Math.cos(f.rot)) * f.len / 2 + 0.1, rot: 0, y0: f.y - 1, y1: f.y + 1 });
+
   return { group, colliders, lampItems, trafficLights: tl, trafficHeads: tlHeads };
 }
 

@@ -59,6 +59,7 @@ export class World {
     for (const m of [...b.group.children]) if (m.isMesh && m.geometry.attributes.position.count > 3000) { m.removeFromParent(); b.group.add(...splitByCells(m, 200)); }
     this.outdoor.add(b.group);
     this.env.windowMaterials.push(...b.windowMaterials);
+    this.env.neonMaterials.push(...b.neonMaterials);
     const lmk = await step('Building landmarks…', () => buildLandmarks());
     this.outdoor.add(lmk);
     lmk.traverse((o) => { if (o.userData.ferris) this.ferris = o; if (o.userData.spin) this.animated.push(o); if (o.userData.lamp) this.env.lampMaterials.push(o.material); });

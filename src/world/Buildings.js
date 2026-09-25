@@ -17,6 +17,8 @@ const SIGNS = {
   clothing: ['THREADS', '#6a1b9a', '#ffffff'], shop: ['24/7 MART', '#1b5e20', '#ffffff'], safehouse: ['SAFEHOUSE', '#37474f', '#80cbc4'],
 };
 export const SPECIAL_TINT = { police: '#9fb4e0', hospital: '#ffffff', gunstore: '#8d8d8d', gym: '#9e9e9e' };
+// Pastel paint colours for houses/villas (multiplied over the light render/siding wall texture).
+const HOUSE_PALETTE = ['#f2e2c4', '#dce8dc', '#e3d3e8', '#f5d6d0', '#cfe0ea', '#eae0c8', '#d8e4d0', '#f0d9b5', '#e8d7c3', '#c9dde0', '#f6e8e8', '#dbe6f0'];
 
 class Bucket {
   constructor() { this.pos = []; this.nor = []; this.uv = []; this.col = []; this.idx = []; }
@@ -95,6 +97,29 @@ function addGable(bucket, wallBucket, b, hx, hz, y, rise, color, wallColor, st) 
   }
 }
 
+// Small projecting balcony (floor slab + railing) on some bays of every upper floor, on the
+// building's front (door-facing) side.
+function addBalconies(bucket, b, st, wallCol, rand) {
+  const floors = Math.floor(b.h / st.floor);
+  if (floors < 2) return;
+  const [fx, fz] = b.face;
+  const faceLen = fz !== 0 ? b.hx : b.hz;
+  const n = Math.max(1, Math.floor((faceLen * 2) / (st.bay * 1.3)));
+  const bw = fz !== 0 ? 1.15 : 0.75, bd = fz !== 0 ? 0.75 : 1.15;
+  const railCol = wallCol.clone().multiplyScalar(0.62);
+  const outx = fx * (b.hx + Math.max(bw, bd) / 2 + 0.02), outz = fz * (b.hz + Math.max(bw, bd) / 2 + 0.02);
+  for (let fl = 1; fl < floors; fl++) {
+    const fy = b.base + fl * st.floor - 0.15;
+    for (let i = 0; i < n; i++) {
+      if (rand() < 0.4) continue; // not every bay gets one
+      const t = (i + 0.5) / n - 0.5;
+      const cx = (fz !== 0 ? t * faceLen * 1.7 : 0) + outx, cz = (fz === 0 ? t * faceLen * 1.7 : 0) + outz;
+      addFlatTop(bucket, b, bw, bd, fy, wallCol, cx, cz);
+      addBoxWalls(bucket, b, bw, bd, fy, fy + 0.85, { bay: 2, floor: 0.85 }, railCol, cx, cz);
+    }
+  }
+}
+
 export function buildBuildings() {
   const L = getLayout();
   const group = new THREE.Group();
@@ -105,13 +130,21 @@ export function buildBuildings() {
   const c = new THREE.Color();
   const materials = [];
   const signMeshes = [];
+  const neonMaterials = [];
   const rand = mulberry32(99);
   for (const b of L.buildings) {
-    const style = TYPE_STYLE[b.type] || 'office';
+    let style = TYPE_STYLE[b.type] || 'office';
+    // Houses & villas: paint-colour variety (occasionally brick instead of render), so
+    // neighbouring houses don't look identical.
+    const isHouseLike = style === 'house' || style === 'villa';
+    if (style === 'house' && rand() < 0.3) style = 'brick';
     const st = FACADE_STYLES[style];
     const tintBase = SPECIAL_TINT[b.type];
     if (tintBase) c.set(tintBase);
-    else {
+    else if (isHouseLike && style !== 'brick') {
+      c.set(HOUSE_PALETTE[Math.floor(rand() * HOUSE_PALETTE.length)]);
+      c.multiplyScalar(0.92 + rand() * 0.12);
+    } else {
       const t = 0.82 + rand() * 0.18;
       c.setRGB(t * (0.95 + rand() * 0.08), t * (0.95 + rand() * 0.06), t * (0.95 + rand() * 0.08));
     }
@@ -125,10 +158,14 @@ export function buildBuildings() {
       addBoxWalls(B(style), b, sx, sz, lowerTop, top, st, wallCol);
       addFlatTop(roofFlat, b, b.hx, b.hz, lowerTop, c.setRGB(0.55, 0.55, 0.53));
       addFlatTop(roofFlat, b, sx, sz, top, c.setRGB(0.5, 0.5, 0.5));
-    } else if (PITCHED.has(b.type)) {
+    } else if (PITCHED.has(b.type) && rand() < 0.82) {
       const roofCol = new THREE.Color(['#a4442c', '#7a3b2e', '#4b4f56', '#6d4c35', '#9c5a3c'][Math.floor(rand() * 5)]);
       if (b.type === 'rough_house') roofCol.set('#55504a');
       addGable(roofTiles, B(style), b, b.hx, b.hz, top, Math.min(b.hx, b.hz) * 0.7, roofCol, wallCol, st);
+    } else if (PITCHED.has(b.type)) {
+      // a fraction of houses get a flat roof + parapet instead of a gable, for shape variety
+      addFlatTop(roofFlat, b, b.hx, b.hz, top, c.setRGB(0.58 + rand() * 0.1, 0.56, 0.53));
+      addBoxWalls(trims, b, b.hx + 0.1, b.hz + 0.1, top - 0.1, top + 0.45, { bay: 4, floor: 1 }, wallCol.clone().multiplyScalar(0.85));
     } else {
       addFlatTop(roofFlat, b, b.hx, b.hz, top, c.setRGB(0.52 + rand() * 0.1, 0.52, 0.5));
       // parapet trim
@@ -165,17 +202,21 @@ export function buildBuildings() {
       else { const x = fx * (b.hx + sOff); a1 = [x, hw * fx]; a2 = [x, -hw * fx]; }
       storefronts.quad(W(a1[0], b.base, a1[1]), W(a2[0], b.base, a2[1]), W(a2[0], b.base + 3.4, a2[1]), W(a1[0], b.base + 3.4, a1[1]), n, [[0, 0], [hw * 2 / 8, 0], [hw * 2 / 8, 1], [0, 1]], c.setRGB(1, 1, 1));
     }
+    // Balconies: 3D floor slabs + railings on upper floors of apartments, villas and houses
+    if ((style === 'apartment' || isHouseLike) && b.h > st.floor * 1.5) addBalconies(trims, b, st, wallCol, rand);
     // Signs
     const sign = SIGNS[b.type];
     if (sign) {
       const tex = signTexture(sign[0], sign[1], sign[2]);
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.25, roughness: 0.5 }));
+      const signMat = new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.15, roughness: 0.5 });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), signMat);
       const dx = fz !== 0 ? 0 : fx * (b.hx + 0.12), dz = fz !== 0 ? fz * (b.hz + 0.12) : 0;
       const p = W(dx, b.base + Math.min(b.h - 1, 4.4), dz);
       m.position.set(p[0], p[1], p[2]);
       m.rotation.y = b.rot + Math.atan2(fx, fz);
       m.userData.sign = true;
       signMeshes.push(m);
+      neonMaterials.push(signMat);
     }
   }
   // Graffiti decals
@@ -197,6 +238,30 @@ export function buildBuildings() {
       map: tex, vertexColors: true, roughness: style === 'glass' ? 0.25 : 0.85, metalness: style === 'glass' ? 0.35 : 0.02,
       emissive: '#ffc877', emissiveMap: facadeEmissive(style), emissiveIntensity: 0,
     });
+    if (style === 'glass') {
+      // Cheap interior-mapping trick for distant skyscraper windows: each window cell fakes a
+      // little room (floor/ceiling gradient, a desk band, a ceiling light strip, an occasional
+      // person silhouette) instead of just showing a flat glass-tint gradient.
+      mat.onBeforeCompile = (sh) => {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+          {
+            vec2 cell = fract(vMapUv);
+            vec2 wc = (cell - 0.5) / vec2(0.92, 0.9) + 0.5;
+            if (wc.x > 0.0 && wc.x < 1.0 && wc.y > 0.0 && wc.y < 1.0) {
+              float rid = fract(sin(dot(floor(vMapUv), vec2(41.3, 289.1))) * 4375.5);
+              vec3 room = mix(vec3(0.04, 0.045, 0.05), vec3(0.10, 0.095, 0.09), wc.y);
+              room = mix(room, vec3(0.22, 0.16, 0.11), step(wc.y, 0.18) * 0.5);
+              float ceilLight = smoothstep(0.86, 0.94, wc.y) * step(0.55, fract(rid * 9.1));
+              room += ceilLight * vec3(1.0, 0.92, 0.75) * 1.6;
+              float px = fract(rid * 5.7);
+              float person = (1.0 - smoothstep(0.05, 0.09, abs(wc.x - px))) * step(0.5, fract(rid * 2.3)) * smoothstep(0.0, 0.25, wc.y) * (1.0 - smoothstep(0.25, 0.55, wc.y));
+              room = mix(room, vec3(0.015), person);
+              diffuseColor.rgb = room;
+            }
+          }`);
+      };
+      mat.customProgramCacheKey = () => 'glass-interior-v1';
+    }
     materials.push(mat);
     const mesh = new THREE.Mesh(bucket.geometry(), mat);
     mesh.castShadow = true; mesh.receiveShadow = true;
@@ -218,5 +283,5 @@ export function buildBuildings() {
   const sf = group.getObjectByName('storefronts');
   if (sf) materials.push(sf.material);
   for (const m of signMeshes) group.add(m);
-  return { group, windowMaterials: materials };
+  return { group, windowMaterials: materials, neonMaterials };
 }

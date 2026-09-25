@@ -54,6 +54,7 @@ export class Environment {
     this.nightFactor = 0;
     this.windowMaterials = [];
     this.lampMaterials = [];
+    this.neonMaterials = [];
     this.waterUniforms = null;
     this.envTimer = 99;
     this.lastW = new THREE.Vector3(-1, -1, -1);
@@ -127,6 +128,7 @@ export class Environment {
     const n = this.nightFactor;
     for (const m of this.windowMaterials) m.emissiveIntensity = 0.35 * n;
     for (const m of this.lampMaterials) m.emissiveIntensity = 0.1 + 4 * n;
+    for (const m of this.neonMaterials) m.emissiveIntensity = 0.15 + 1.1 * n;
     if (this.waterUniforms) {
       this.waterUniforms.uSunDir.value.copy(this.sunDir);
       this.waterUniforms.uNight.value = n * 0.8;
