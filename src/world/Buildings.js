@@ -4,7 +4,7 @@ import { mulberry32 } from '../../shared/rng.js';
 import { facadeTexture, facadeEmissive, FACADE_STYLES, roofTexture, storefrontTexture, graffitiTexture, signTexture } from './textures.js';
 
 export const TYPE_STYLE = {
-  tower: 'glass', office: 'office', apartment: 'apartment', shop: 'shop', restaurant: 'shop', cafe: 'shop', bar: 'rough', clothing: 'shop',
+  tower: 'glass', office: 'office', apartment: 'apartment', shop: 'shop', restaurant: 'shop', cafe: 'shop', bar: 'rough', nightclub: 'rough', clothing: 'shop',
   house: 'house', villa: 'villa', beach_house: 'villa', safehouse: 'villa', rough_apartment: 'rough', rough_house: 'rough',
   brick_apartment: 'brick', warehouse: 'warehouse', factory: 'warehouse', farmhouse: 'house', cabin: 'cabin', gym: 'warehouse',
   police: 'office', hospital: 'apartment', gunstore: 'shop', taxi_depot: 'shop', garage: 'warehouse',
@@ -15,6 +15,7 @@ const SIGNS = {
   gym: ['IRON GYM', '#111111', '#ff3d00'], taxi_depot: ['APPLERUN CABS', '#f7c600', '#111111'], garage: ['MOD GARAGE', '#263238', '#00e5ff'],
   cafe: ['CAFE LUNA', '#5d4037', '#ffe0b2'], restaurant: ['DINER', '#b71c1c', '#ffffff'], bar: ['THE RUSTY BAR', '#3e2723', '#ffca28'],
   clothing: ['THREADS', '#6a1b9a', '#ffffff'], shop: ['24/7 MART', '#1b5e20', '#ffffff'], safehouse: ['SAFEHOUSE', '#37474f', '#80cbc4'],
+  nightclub: ['NEON CLUB', '#170022', '#ff2fd6'],
 };
 export const SPECIAL_TINT = { police: '#9fb4e0', hospital: '#ffffff', gunstore: '#8d8d8d', gym: '#9e9e9e' };
 // Pastel paint colours for houses/villas (multiplied over the light render/siding wall texture).

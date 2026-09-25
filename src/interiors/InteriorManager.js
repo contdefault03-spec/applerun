@@ -11,9 +11,10 @@ export const DOME_ID = 1000;
 const NAMES = {
   house: 'House', apartment: 'Apartment', safehouse: 'Your Safehouse', office: 'Office', shop: '24/7 Mart', restaurant: 'Diner', bar: 'The Rusty Bar',
   gunstore: 'Applerun Guns', police: 'Police Station', hospital: 'Applerun General Hospital', gym: 'Iron Gym', garage: 'Garage', warehouse: 'Warehouse', dome: 'Applerun Dome',
+  nightclub: 'Neon Club',
 };
-const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'] };
-const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e' };
+const WALL = { house: ['#e8dcc8', '#cfe3d4', '#dcd3ea'], apartment: ['#e6e1d6', '#d9e6ef'], safehouse: ['#d7e3e8'], office: ['#eceff1'], shop: ['#f5f5f5'], restaurant: ['#f3dcc2'], bar: ['#6d4c41'], gunstore: ['#8d8378'], police: ['#dfe6ee'], hospital: ['#f4f8fb'], gym: ['#cfd8dc'], garage: ['#9ea7ad'], warehouse: ['#9aa0a6'], dome: ['#2b2d42'], nightclub: ['#170022', '#1c0b2e'] };
+const FLOOR = { house: '#a1795a', apartment: '#b08968', safehouse: '#8d6e63', office: '#90a4ae', shop: '#e0e0e0', restaurant: '#8d6e63', bar: '#5d4037', gunstore: '#616161', police: '#b0bec5', hospital: '#e3eef5', gym: '#37474f', garage: '#757575', warehouse: '#7d7d7d', dome: '#1b1d2e', nightclub: '#0e0616' };
 
 export class InteriorManager {
   constructor(game) {
@@ -62,7 +63,7 @@ export class InteriorManager {
     g.position.set(o.x, 0, o.z);
     g.visible = false;
     this.game.engine.scene.add(g);
-    const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28] }[type] || [12, 10];
+    const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], nightclub: [20, 16], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28] }[type] || [12, 10];
     const [W, D] = size;
     const H = type === 'warehouse' || type === 'dome' ? 7 : type === 'gym' || type === 'garage' ? 5 : 3.2;
     const it = { bid, type, name: NAMES[type] || 'Building', group: g, origin: o, W, D, H, colliders: [], seats: [], uses: [], npcSpots: [], lights: [], residential: RESIDENTIAL.has(type) };
@@ -169,6 +170,31 @@ export class InteriorManager {
         if (bar) it.uses.push({ x: W * 0.25, z: -D / 2 + 2.6, kind: 'rob', label: 'Rob the bar (crime!)' });
         break;
       }
+      case 'nightclub': {
+        place(Prefabs.counter(W * 0.35, '#12001f'), -W / 2 + 2.2, D / 2 - 2, Math.PI / 2);
+        // DJ booth against the back wall
+        const booth = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1.6), mat('#1a0a26'));
+        booth.position.set(0, 0.5, -D / 2 + 1.2); g.add(booth);
+        it.colliders.push({ x: 0, z: -D / 2 + 1.2, hx: 1.5, hz: 0.8, h: 1 });
+        it.djBooth = { x: 0, z: -D / 2 + 1.2 };
+        // dance floor: a grid of small emissive tiles, colour-cycled in update()
+        it.discoTiles = [];
+        const tileN = 5;
+        for (let i = 0; i < tileN; i++) for (let j = 0; j < tileN; j++) {
+          const tm = new THREE.MeshStandardMaterial({ color: '#111', emissive: '#ff2fd6', emissiveIntensity: 0.8 });
+          const tile = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), tm);
+          tile.rotation.x = -Math.PI / 2;
+          tile.position.set((i - (tileN - 1) / 2) * 1.5, 0.02, (j - (tileN - 1) / 2) * 1.5 + 1.5);
+          g.add(tile);
+          it.discoTiles.push({ mesh: tile, phase: (i + j) * 0.6 });
+        }
+        it.colliders.push({ x: 0, z: 1.5, hx: tileN * 0.8, hz: tileN * 0.8, h: 0.1, walk: true });
+        for (let i = 0; i < 6; i++) place(Prefabs.barStool(), -W / 2 + 1.2, D / 2 - 3.3 + i * 0.9);
+        it.npcSpots.push({ x: -W / 2 + 1.6, z: D / 2 - 2, role: 'shopkeeper', yaw: Math.PI / 2, fixed: true, name: 'Bartender' });
+        for (let i = 0; i < 5; i++) it.npcSpots.push({ x: (Math.sin(i * 2.1) * tileN * 0.6), z: 1.5 + Math.cos(i * 1.7) * tileN * 0.6, role: 'civilian', name: 'Patron' });
+        it.uses.push({ x: -W / 2 + 2.2, z: D / 2 - 2, kind: 'snack', label: 'Order a drink ($15)' });
+        break;
+      }
       case 'gunstore': {
         place(Prefabs.counter(W * 0.6, '#5d4037'), 0, -D / 2 + 2.6);
         const models = this.game.weapons ? this.game.weapons.displayModels() : [];
@@ -269,7 +295,16 @@ export class InteriorManager {
     g.npcs?.spawnInterior?.(it);
     g.police?.onEnterInterior?.(it);
     for (const s of g.systems) s.onEnterInterior?.(it);
+    if (it.type === 'nightclub') { this.discoT = 0; this.clubAudio = g.audio.clubBeat?.(() => ({ x: o.x + it.djBooth.x, y: 1.2, z: o.z + it.djBooth.z })); }
     this.fadeTo(0);
+  }
+  update(dt) {
+    const it = this.current;
+    if (!it || it.type !== 'nightclub') return;
+    this.discoT += dt;
+    const hue = (t) => new THREE.Color().setHSL((this.discoT * 0.15 + t) % 1, 0.9, 0.55);
+    for (const d of it.discoTiles) d.mesh.material.emissive.copy(hue(d.phase * 0.1));
+    for (let i = 0; i < this.pool.length; i++) if (it.lights[i]) this.pool[i].color.copy(hue(i / this.pool.length));
   }
   // Move the pooled interior lights into the occupied interior's light slots (or switch them off).
   applyLights(it) {
@@ -288,6 +323,7 @@ export class InteriorManager {
     if (!it) return;
     await this.fadeTo(1);
     g.audio.door(g.player.pos);
+    if (this.clubAudio) { this.clubAudio.stop(); this.clubAudio = null; }
     it.group.visible = false;
     this.current = null;
     this.applyLights(null);

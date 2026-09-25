@@ -126,24 +126,14 @@ Never break existing gameplay or multiplayer.
   - Buildings are in `src/world/Buildings.js`: facades merged per style, then split into 200 m cells in `World.js`.
   - Glass towers still glow as solid grids at night (window emissive at `0.35 × night`, uniform per building) — the interior-mapping shader improves the *daytime* look; true random-lit-windows at night is the remaining piece of this stage.
 
-### Stage 5: interiors everywhere, all different
-- Every enterable building must be decorated and look different. Build a large interior kit (many furniture sets, wall colours, floors, decorations) and generate varied rooms from it.
-- Add building types beyond what exists: pubs, bars, nightclubs, restaurants, cafés, medical offices and clinics, dentist, pharmacy, cinema, supermarket, clothing stores, barber, bank, gym, arcade, office floors, apartments and houses. Come up with more ideas too.
-- Make them work like real life where practical:
-  - buy food and drinks;
-  - heal at clinics and pharmacies;
-  - watch a film in the cinema (a screen with a looping clip);
-  - use the ATM;
-  - dance in clubs.
-- Nightclubs, pubs and a concert hall:
-  - animated crowds (dancing, standing, drinking);
-  - a DJ or band on stage;
-  - lights synced to the music;
-  - royalty-free music playing inside: spatial, louder the closer you are, muffled from outside.
+### Stage 5: interiors everywhere, all different (partly done — was already further along than this file said)
+- **Already in place before this pass** (found, not newly built): `src/interiors/InteriorManager.js` generates a distinct, furnished interior for every enterable building — house/safehouse/apartment, shop, restaurant/bar, gunstore, police, hospital, gym, garage, office, warehouse, plus the wrestling dome — each with its own layout, working interactions (buy a snack/drink for health, get treated at the hospital, browse the gun store, repair a car, rob the register/bar, turn yourself in, sign up for police duty, sleep & save at the safehouse) and NPC spots. Interiors live far outside the map (`shared/interiors.js`) and are only built/spawned on demand (`InteriorManager.get`/`.enter`), never simulated while empty.
+- **New this commit — nightclub:** a `nightclub` building (assigned near the existing bar, `shared/map/layout.js`, `Buildings.js` sign "NEON CLUB") with its own interior: a DJ booth, a 5×5 colour-cycling disco dance floor (`it.discoTiles`, updated in `InteriorManager.update`), a bar with patrons and a bartender, and a generative positional "club beat" (`AudioManager.clubBeat`) that plays while you're inside, louder near the DJ booth. Patron NPCs stand around the floor rather than actually dancing — no new NPC animation state was added, so this is not full crowd-dancing.
+- **Not done:** the other new building types (clinic, dentist, pharmacy, cinema, supermarket, barber, bank, arcade); ATM usable action; ability to watch a film in the cinema; ready-made per-house furniture-layout variety (houses currently vary by wall/sofa/roof colour and facade material, per Stage 4, but the furniture *layout* inside is the same for every house — only the palette differs); pubs/concert hall with animated crowds and lights-synced-to-music beyond the one nightclub; true distance-based audio muffling from outside a venue (the interior is a physically separate slot, so there's no "hear it through the wall while standing outside" effect to muffle).
 - Notes:
   - Interiors live in `src/interiors/InteriorManager.js`, placed in far slots (`shared/interiors.js`).
   - Load interiors only when the player is near or inside.
-  - Interior lights use `LightPool` (3 pooled lights).
+  - Interior lights use `LightPool` (3 pooled lights); the nightclub reuses the same pool for its colour-cycling lights.
 
 ### Stage 6: mountain ski resort and hotel
 - Near the top of the mountain, in the snowy area: a ski resort with a lodge, animated ski lifts (not necessarily rideable) and snowy slopes.

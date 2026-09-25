@@ -264,4 +264,26 @@ export class AudioManager {
     this.musicGain = g;
   }
   stopMusic() { if (this.music) { clearInterval(this.music); this.music = null; } }
+
+  /** Generative club beat (kick + hat + a bassline note), positional so it's louder near the
+   * DJ booth and fades with distance like any other 3D sound. getPos() is polled each beat so
+   * the source can follow a moving reference (unused here, but kept consistent with other spatial
+   * loops). Returns { stop() }. */
+  clubBeat(getPos, bpm = 126) {
+    if (!this.ctx) return { stop() {} };
+    const step = 60 / bpm / 2;
+    const bass = [55, 55, 82.4, 65.4];
+    let i = 0, alive = true;
+    const tick = () => {
+      if (!alive) return;
+      const pos = getPos();
+      this.noiseBurst(pos, { dur: 0.09, freq: 120, type: 'lowpass', vol: 0.5, bus: 'music', ref: 8, max: 60 });
+      this.tone(pos, { freq: bass[i % bass.length], dur: step * 1.8, type: 'sawtooth', vol: 0.22, bus: 'music', ref: 8, max: 60 });
+      if (i % 2 === 1) this.noiseBurst(pos, { dur: 0.04, freq: 7000, type: 'highpass', vol: 0.12, bus: 'music', ref: 8, max: 60 });
+      i++;
+    };
+    tick();
+    const h = setInterval(tick, step * 1000);
+    return { stop: () => { alive = false; clearInterval(h); } };
+  }
 }

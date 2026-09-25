@@ -422,6 +422,7 @@ function buildLayout() {
   assign('cafe', 280, 420, 'cafe');
   assign('diner', 205, 600, 'restaurant');
   assign('bar', 760, 620, 'bar');
+  assign('nightclub', 690, 570, 'nightclub');
   assign('clothing', 420, 520, 'clothing');
   assign('police2', 900, 610, 'police');
   assign('safehouse', 360, 300, 'safehouse', ['house', 'villa']);

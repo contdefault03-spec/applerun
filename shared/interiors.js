@@ -23,7 +23,7 @@ export function interiorAt(x, z) {
 export const INTERIOR_TYPE = {
   house: 'house', villa: 'house', farmhouse: 'house', cabin: 'house', beach_house: 'house', safehouse: 'safehouse', rough_house: 'house',
   apartment: 'apartment', rough_apartment: 'apartment', brick_apartment: 'apartment', tower: 'office', office: 'office',
-  shop: 'shop', clothing: 'shop', cafe: 'restaurant', restaurant: 'restaurant', bar: 'bar',
+  shop: 'shop', clothing: 'shop', cafe: 'restaurant', restaurant: 'restaurant', bar: 'bar', nightclub: 'nightclub',
   gunstore: 'gunstore', police: 'police', hospital: 'hospital', gym: 'gym', garage: 'garage', taxi_depot: 'garage', warehouse: 'warehouse', factory: 'warehouse',
 };
 export const RESIDENTIAL = new Set(['house', 'apartment', 'safehouse']);
