@@ -58,6 +58,7 @@ export class Vehicle {
   /** Local driver physics step. input: {throttle, steer, handbrake, boost} */
   simulate(dt, input, collision) {
     const s = this.spec;
+    if (s.boat) return this.simulateBoat(dt, input);
     if (this.destroyed) { input = { throttle: 0, steer: 0, handbrake: true }; }
     const p = this.group.position;
     const dmgMul = this.dmg > 80 ? 0.5 : this.dmg > 50 ? 0.8 : 1;
@@ -157,6 +158,33 @@ export class Vehicle {
   }
   bump(dx, dz) { if (!this.isDriver && !this.remote) { this.group.position.x += dx * 0.05; this.group.position.z += dz * 0.05; this.updateCollider(); } }
 
+  /** Simplified physics for boats: no wheels/suspension, floats on the sea (or the local
+   * terrain height near shore), gentle bob, ignores the swim-back-out limit that stops
+   * players — boats may go further, per Stage 1's note. */
+  simulateBoat(dt, input) {
+    const s = this.spec;
+    const p = this.group.position;
+    if (this.destroyed) input = { throttle: 0, steer: 0 };
+    if (input.throttle > 0) this.speed += s.accel * input.throttle * Math.max(0, 1 - (this.speed / s.maxSpeed) ** 2) * dt;
+    else if (input.throttle < 0) this.speed -= s.accel * 0.6 * dt;
+    else this.speed -= Math.sign(this.speed) * Math.min(Math.abs(this.speed), 1.2 * dt);
+    this.speed = Math.max(-s.maxSpeed * 0.3, Math.min(s.maxSpeed, this.speed));
+    this.braking = input.throttle < 0;
+    const lock = s.steer * (1 - 0.5 * Math.min(1, Math.abs(this.speed) / s.maxSpeed));
+    this.steer += (input.steer * lock - this.steer) * Math.min(1, dt * 5);
+    this.yawRate = (this.speed / s.wheelBase) * this.steer;
+    this.yaw += this.yawRate * dt;
+    const f = this.forward();
+    p.x += f.x * this.speed * dt; p.z += f.z * this.speed * dt;
+    const sea = heightAt(p.x, p.z);
+    this.bobT = (this.bobT || 0) + dt;
+    p.y = Math.max(sea, WATER_LEVEL) + 0.05 + Math.sin(this.bobT * 1.3) * 0.05;
+    this.pitch += (Math.sin(this.bobT * 1.1 + 1) * 0.03 - this.pitch) * Math.min(1, dt * 4);
+    this.roll += (Math.sin(this.bobT * 0.9) * 0.04 - this.roll) * Math.min(1, dt * 4);
+    this.vLat = 0; this.vy = 0; this.sinking = false;
+    this.updateCollider();
+  }
+
   groundHeight(collision, x, z) {
     let h = collision.groundAt(x, z);
     // drivable platforms (pier deck, parking decks, low props) — anything with a low top
@@ -201,7 +229,7 @@ export class Vehicle {
   updateVisual(dt, night) {
     const g = this.group;
     g.rotation.set(this.pitch, this.yaw, this.roll, 'YXZ');
-    this.wheelSpin += (this.speed * dt) / this.spec.wheelR;
+    if (this.spec.wheelR) this.wheelSpin += (this.speed * dt) / this.spec.wheelR;
     for (const w of this.wheels) {
       w.spin.rotation.x = this.wheelSpin;
       if (w.front) w.pivot.rotation.y = this.steer;

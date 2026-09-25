@@ -157,21 +157,16 @@ Never break existing gameplay or multiplayer.
 - **Not done:** an arcade on the pier; enterable houses/cafés specifically *along the pier* (the general building/interior system from Stages 4–5 covers houses/cafés elsewhere in the city, but none were added to the pier itself); a party at the end (music/dancing NPCs/lights — the nightclub built for Stage 5 covers the "one venue with lights + music + crowd" idea, but not on the pier); confirmation that pedestrian NPCs actually walk the pier (not verified this pass).
 - Notes: pier landmarks are `pier` and `pierEnd` in the layout.
 
-### Stage 9: fishing mission (multiplayer)
-- **Start:** standing at the boat, press E. A 20-second countdown starts, and every player near the boat during that time joins the mission.
-- **Trip out:** the boat is drivable. Players ride it about 500 m out to sea, with a marker showing where to go.
-- **Fishing:** at the spot, everyone gets a fishing rod (a real model with a line and bobber) and casts. Show fishing animations.
-- **The catch:**
-  - The player playing **Ajan** always gets the catch, never the others.
-  - After about 30 seconds of fishing, Ajan's bait bites: the bobber dips and the water ripples and splashes.
-- **Cutscene, synced for all players:** the camera cuts to Ajan, and a big tuna bursts out of the water in slow motion with splash particles and cinematic camera angles.
-- **Grab:** only Ajan's screen shows "Press E to grab the fish". When he presses E, Ajan pulls the tuna up, holds it and looks at it. At exactly that moment `fish.mp3` plays, spatial and audible to everyone nearby.
-- **Reward:** every participant gets $20,000 and Ajan gets $25,000, paid through the server economy so it can't be faked.
-- **Return:** everyone drives the boat back to the pier and the mission ends.
-- If no one is playing Ajan, show a message that the mission needs an Ajan player, or let the host pick the "lucky fisher".
+### Stage 9: fishing mission (core flow done; presentation is a placeholder)
+- **Done:** `src/systems/FishingMission.js` (new system, registered in `Game.js`). Press E at the boat at the end of the pier (a real drivable `boat` vehicle — see Stage 7 vehicle notes — spawned from `shared/map/layout.js`'s `vehicleSpawns`, flagged `fixed: 'fishingBoat'`) to start a 20 s join window; every player within range when it ends joins (`this.participants`), and the boat is driven ~500 m out to sea along the pier's own heading, with a waypoint marker (`Game.setWaypoint`). After ~30 s at the spot, a bite triggers a splash-particle burst (`Effects.spawn`) and a noise-burst sound. Only the player playing **Ajan** (`avatar.key === 'ajan'`, the existing selectable character) sees "Press E to grab the fish"; grabbing plays `fish.mp3` positionally for everyone nearby (broadcast over the existing generic `fx` relay, `server/rooms.js`, so remote players hear it too) and pays out through the server economy — a new `fishing` reward kind (`shared/economy.js`, `server/rooms.js`) rate-limited server-side, same pattern as the existing taxi/paramedic/police "client-simulated job" rewards — $20,000 to participants, $25,000 to Ajan. If no one in the party is Ajan, the trip is refused with a message instead of starting. Verified end-to-end in a scripted single-player run (join → sail → arrive → bite → grab → payout).
+- **Not done / simplified:**
+  - No modelled fishing rod, line, bobber or casting animation — casting is a notification, not a visible action.
+  - No synced cinematic camera cut to Ajan or slow-motion tuna model; the "catch" is a particle splash + sound, not a Khronos `BarramundiFish`-based fish model breaching the water.
+  - The 20 s join window is tracked locally by whoever presses E first, not server-authoritative, and there's no "host picks the lucky fisher" fallback — it simply refuses to start without an Ajan.
+  - The return trip isn't specially tracked — driving back to the pier just means driving there; there's no explicit "mission ended" state tied to arrival.
 - Notes:
   - Server rooms are in `server/rooms.js`; rewards go through `shared/economy.js` `reward` kinds.
-  - The Khronos glTF sample `BarramundiFish` (CC0) could be the tuna base: scale it and retint it.
+  - The Khronos glTF sample `BarramundiFish` (CC0) could still be added as the tuna model for a future pass.
 
 ### Stage 10: combat mode upgrade (CS2 style)
 - **Entrance:** army barracks somewhere on the map (or at the Industrial Yard).

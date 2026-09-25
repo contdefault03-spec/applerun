@@ -16,6 +16,7 @@ export const SPECS = {
   van: { name: 'Delivery Van', length: 5.3, width: 2.05, height: 2.3, wheelR: 0.4, wheelBase: 3.3, track: 1.75, maxSpeed: 38, accel: 5.5, brake: 13, steer: 0.45, grip: 6.5, mass: 2600, seats: 2, colors: ['#ffffff', '#1e88e5', '#8d6e63', '#fdd835'], box: true },
   truck: { name: 'Box Truck', length: 7.2, width: 2.4, height: 3.2, wheelR: 0.5, wheelBase: 4.4, track: 2.0, maxSpeed: 32, accel: 4.2, brake: 11, steer: 0.4, grip: 6, mass: 7000, seats: 2, colors: ['#e53935', '#1565c0', '#eeeeee', '#2e7d32'], truck: true },
   motorcycle: { name: 'Motorcycle', length: 2.1, width: 0.8, height: 1.15, wheelR: 0.33, wheelBase: 1.45, track: 0, maxSpeed: 60, accel: 13, brake: 20, steer: 0.6, grip: 8, mass: 220, seats: 2, colors: ['#d50000', '#212121', '#ff6d00', '#2962ff', '#00c853'], bike: true },
+  boat: { name: 'Skiff', length: 6.2, width: 2.2, height: 1.6, wheelR: 0, wheelBase: 3, track: 1.6, maxSpeed: 18, accel: 4.5, brake: 6, steer: 0.5, grip: 3, mass: 900, seats: 4, colors: ['#e0e0e0', '#1565c0', '#e53935'], boat: true },
 };
 for (const s of Object.values(SPECS)) s.interior = !s.bike;
 
@@ -75,7 +76,7 @@ export function buildVehicle(type, color, accent = null) {
   const tireGeo = new THREE.CylinderGeometry(s.wheelR, s.wheelR, s.bike ? 0.16 : 0.26, 16); tireGeo.rotateZ(Math.PI / 2);
   const rimGeo = new THREE.CylinderGeometry(s.wheelR * 0.62, s.wheelR * 0.62, s.bike ? 0.18 : 0.28, 10); rimGeo.rotateZ(Math.PI / 2);
   const wz = s.wheelBase / 2;
-  const positions = s.bike ? [[0, wz, true], [0, -wz, false]] : [[s.track / 2, wz, true], [-s.track / 2, wz, true], [s.track / 2, -wz, false], [-s.track / 2, -wz, false]];
+  const positions = s.boat ? [] : s.bike ? [[0, wz, true], [0, -wz, false]] : [[s.track / 2, wz, true], [-s.track / 2, wz, true], [s.track / 2, -wz, false], [-s.track / 2, -wz, false]];
   if (s.truck) positions.push([s.track / 2, -wz + 1.3, false], [-s.track / 2, -wz + 1.3, false]);
   for (const [x, z, front] of positions) {
     const pivot = new THREE.Group(); pivot.position.set(x, s.wheelR, z);
@@ -112,6 +113,16 @@ function buildParts(type, s, color, accent) {
     matte.push(bx(W, 0.3, L, 0, y0 + 0.15, 0, dark));
     head.push(bx(0.35, 0.18, 0.05, W / 2 - 0.3, y0 + 0.75, L / 2 + 0.01, '#fff'), bx(0.35, 0.18, 0.05, -W / 2 + 0.3, y0 + 0.75, L / 2 + 0.01, '#fff'));
     tail.push(bx(0.3, 0.2, 0.05, W / 2 - 0.25, y0 + 0.6, -L / 2 - 0.01, '#f00'), bx(0.3, 0.2, 0.05, -W / 2 + 0.25, y0 + 0.6, -L / 2 - 0.01, '#f00'));
+  } else if (s.boat) {
+    const hullH = 0.6;
+    body.push(bx(W, hullH, L * 0.92, 0, hullH / 2, 0, color));
+    body.push(bx(W * 0.7, hullH * 0.7, L * 0.22, 0, hullH * 0.85, L * 0.42, color));
+    matte.push(bx(W + 0.06, 0.12, L + 0.1, 0, hullH + 0.02, 0, '#e8e8e8'));
+    matte.push(bx(W * 0.6, 0.55, 1.1, 0, hullH + 0.3, -L * 0.12, '#37474f'));
+    glass.push(bx(W * 0.55, 0.32, 0.05, 0, hullH + 0.62, -L * 0.12 + 0.5, '#000', -0.3));
+    matte.push(bx(0.06, 0.4, 0.06, 0, hullH + 0.75, -L * 0.12, '#222'));
+    head.push(bx(0.2, 0.1, 0.05, W / 2 - 0.25, hullH + 0.15, L / 2 + 0.01, '#fff'));
+    tail.push(bx(0.16, 0.1, 0.05, W / 2 - 0.2, hullH + 0.15, -L / 2 - 0.01, '#f00'));
   } else if (s.box) {
     // van / ambulance: tall box with short nose
     const nose = 1.1;

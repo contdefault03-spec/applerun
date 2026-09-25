@@ -217,6 +217,14 @@ export class RoomManager {
           c.dirtyProfile = true;
           return { ...r, profile: c.profile };
         }
+        if (kind === 'fishing') {
+          c.rewardAt ??= {};
+          if (now() - (c.rewardAt.fishing || 0) < 5 * 60000) return { ok: false, error: 'Too soon' };
+          c.rewardAt.fishing = now();
+          const r = applyReward(c.profile, 'fishing', { role: d.role === 'ajan' ? 'ajan' : 'participant' });
+          c.dirtyProfile = true;
+          return { ...r, profile: c.profile };
+        }
         if (kind === 'paramedic' || kind === 'police' || kind === 'event') {
           // client-simulated jobs: rate-limited and clamped server-side
           c.rewardAt ??= {};

@@ -58,6 +58,7 @@ export function applyReward(p, kind, data = {}) {
     case 'tip': amount = -Math.min(p.money, 5); break;
     case 'repair': amount = -Math.min(p.money, 150); break;
     case 'event': amount = Math.max(0, Math.min(200, data.amount | 0)); break;
+    case 'fishing': amount = data.role === 'ajan' ? 25000 : 20000; break;
     default: return { ok: false, error: 'bad reward' };
   }
   p.money = Math.max(0, p.money + amount);

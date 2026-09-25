@@ -29,6 +29,7 @@ import { PoliceManager } from './systems/PoliceManager.js';
 import { Jobs } from './systems/Jobs.js';
 import { Emergency } from './systems/Emergency.js';
 import { Events } from './systems/Events.js';
+import { FishingMission } from './systems/FishingMission.js';
 import { ActivityManager } from './activities/ActivityManager.js';
 import { VoiceChat } from './net/VoiceChat.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
@@ -85,6 +86,7 @@ export class Game {
     this.jobs = this.addSystem(new Jobs(this));
     this.emergency = this.addSystem(new Emergency(this));
     this.events = this.addSystem(new Events(this));
+    this.fishing = this.addSystem(new FishingMission(this));
     this.dialogue = new Dialogue(this);
     progress(0.9, 'Dressing up the citizens of Applerun…');
     await this.npcs.prebuild();
