@@ -105,11 +105,7 @@ Never break existing gameplay or multiplayer.
 
 - **Plants:** `src/world/Plants.js` + shared `src/world/Foliage.js` (card/cluster/material helpers factored out of `Trees.js`). Bushes/hedges scattered around house gardens (`house`/`villa`/`beach_house`/`cabin`/`farmhouse` buildings, `shared/map/layout.js` `plants` array) plus flower and grass-tuft patches in the plaza park, using the small-leaf/flower/grass atlas cells with the same wind-sway shader as the trees, much smaller amplitude. No colliders on flowers/grass (walk-through); bushes get a small walkable-but-blocking collider.
 
-**Not done yet in Stage 3:**
-- **Street furniture everywhere:**
-  - hydrants, benches, bins, bus stops, street lamps, traffic lights (with working red/amber/green heads that follow the timing in `src/vehicles/Traffic.js`), signs, bollards, bike racks;
-  - instanced, with colliders;
-  - replaces the box props in `Props.js`.
+- **Street furniture:** `src/world/Props.js` + new positions in `shared/map/layout.js` (`bollards`, `bikeRacks`, `busStops`, `signs`). Hydrants, benches, bins and street lamps already existed; added bollards along street/main shoulders, bike racks by shops/cafés, bus-stop shelters along main roads, and stop-sign-style corner signs at minor junctions — all instanced with colliders. **Traffic lights now work:** each lit intersection gets 4 signal poles (2 per approach group, matching how `Traffic.js`'s `lightGreen()` groups cars), each with an emissive head whose colour `Traffic.updateLights()` sets every frame from the same 26 s cycle (green → 3 s amber → red), so the poles agree with when AI cars actually stop.
 - Add a credits line for the generated textures in `CREDITS.md` (done: see "Generated in code").
 
 ## Remaining stages (owner's full requirements)
@@ -117,9 +113,9 @@ Never break existing gameplay or multiplayer.
 ### Stage 3: realistic terrain, roads and nature (finish)
 - PBR textures (albedo + normal + roughness) for grass, dirt, sand, asphalt, pavement, kerbs, rock and snow. **Done.**
 - Mountain: grass at the bottom, then rock, then snow only near the top, blended by height and slope. **Done.**
-- Real road markings, crossings, kerbs, manholes and drains. **Done, needs QA.**
-- Realistic tree models of several species (leafy trees, pines, palms) with proper leaf textures and wind sway. Bushes, hedges, flower beds and grass patches around houses and parks.
-- Boulevards with tree rows down the middle, and street furniture everywhere: hydrants, benches, bins, bus stops, street lamps, traffic lights, signs, bollards, bike racks.
+- Real road markings, crossings, kerbs, manholes and drains. **Done, QA'd at eye level.**
+- Realistic tree models of several species (leafy trees, pines, palms) with proper leaf textures and wind sway. Bushes, hedges, flower beds and grass patches around houses and parks. **Done** (`src/world/Trees.js`, `Plants.js`, `Foliage.js`).
+- Boulevards with tree rows down the middle, and street furniture everywhere: hydrants, benches, bins, bus stops, street lamps, traffic lights, signs, bollards, bike racks. **Done** (median trees now planted; furniture in `Props.js`; working traffic-light heads in `Traffic.js`).
 
 ### Stage 4: buildings
 - **Houses:** varied, colourful facades (different paint colours, brick, render), coloured balconies with railings and plants, different roof shapes, fences, gardens and driveways. No two neighbouring houses should look the same.

@@ -438,7 +438,7 @@ function buildLayout() {
   addLandmarkColliders(landmarks, colliders);
 
   // ---- props: trees, lamps, parked cars, etc.
-  const props = buildProps(rand, roads, buildings, landmarks, roadIndex, overlapsExisting, onLand);
+  const props = buildProps(rand, roads, buildings, landmarks, roadIndex, overlapsExisting, onLand, graph);
 
   // ---- vehicle spawns (parked cars)
   const vehicleSpawns = buildVehicleSpawns(rand, roads, buildings, landmarks, special, roadIndex, overlapsExisting);
@@ -662,8 +662,9 @@ function addLandmarkColliders(L, colliders) {
 }
 
 // ---------------------------------------------------------------- props
-function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand) {
+function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, graph) {
   const trees = [], palms = [], lamps = [], benches = [], lights = [], containers = [], cranes = [], boats = [], rocks = [], hydrants = [], bins = [], graffiti = [], fences = [];
+  const bollards = [], bikeRacks = [], busStops = [], signs = [];
   // Street lamps along roads
   for (const r of roads) {
     const t = ROAD_TYPES[r.type];
@@ -752,6 +753,61 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand) {
     if (isWaterPx(px, py)) continue;
     (rand() < 0.5 ? hydrants : bins).push({ x, z, rot: rand() * 6 });
   }
+  // Bollards along street/main road shoulders, bike racks near shops, bus stops and
+  // corner signs at minor junctions
+  for (const r of roads) {
+    if (r.type !== 'street' && r.type !== 'main') continue;
+    let acc = 0;
+    for (let i = 1; i < r.pts.length; i++) {
+      const [ax, az] = r.pts[i - 1], [bx, bz] = r.pts[i];
+      const seg = Math.hypot(bx - ax, bz - az);
+      acc += seg;
+      if (acc < 30) continue;
+      acc = 0;
+      const tx = (bx - ax) / seg, tz = (bz - az) / seg;
+      for (const side of [-1, 1]) {
+        const off = r.width / 2 + 1.1;
+        const x = bx - tz * side * off, z = bz + tx * side * off;
+        const [px, py] = toPx(x, z);
+        if (isWaterPx(px, py)) continue;
+        if (rand() < 0.35) bollards.push({ x, z, rot: 0 });
+      }
+    }
+    if (r.type === 'main') {
+      let acc2 = 60;
+      for (let i = 1; i < r.pts.length; i++) {
+        const [ax, az] = r.pts[i - 1], [bx, bz] = r.pts[i];
+        const seg = Math.hypot(bx - ax, bz - az);
+        acc2 += seg;
+        if (acc2 < 140) continue;
+        acc2 = 0;
+        const tx = (bx - ax) / seg, tz = (bz - az) / seg;
+        const side = rand() < 0.5 ? 1 : -1;
+        const off = r.width / 2 + 1.6;
+        const x = bx - tz * side * off, z = bz + tx * side * off;
+        const [px, py] = toPx(x, z);
+        if (isWaterPx(px, py)) continue;
+        busStops.push({ x, z, rot: Math.atan2(-tz * side, tx * side) });
+      }
+    }
+  }
+  // Bike racks and shop/stop signs near buildings that face the street
+  for (const b of buildings) {
+    if (rand() < (b.type === 'shop' || b.type === 'clothing' || b.type === 'cafe' ? 0.5 : 0.04)) {
+      const [fx, fz] = b.face;
+      const c = Math.cos(b.rot), s = Math.sin(b.rot);
+      const lx = fx * (b.hx + 2.2), lz = fz * (b.hz + 2.2);
+      const x = b.x + lx * c + lz * s, z = b.z - lx * s + lz * c;
+      const [px, py] = toPx(x, z);
+      if (!isWaterPx(px, py)) bikeRacks.push({ x, z, rot: b.rot });
+    }
+  }
+  for (const n of graph.nodes) {
+    if (n.edges.length < 3) continue;
+    const types = n.edges.map((e) => roads[graph.edges[e].road].type);
+    if (types.includes('main') || types.includes('highway')) continue; // those get traffic lights
+    if (rand() < 0.5) signs.push({ x: n.x + 2.5, z: n.z + 2.5, rot: rand() * 6.28 });
+  }
   // Plants: bushes/hedges around house gardens, flower/grass patches in parks
   const plants = [];
   const houseTypes = new Set(['house', 'villa', 'beach_house', 'cabin', 'farmhouse']);
@@ -776,7 +832,7 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand) {
     const b = L[key];
     for (let i = 0; i < 40; i++) plants.push({ x: b.x + (rand() - 0.5) * b.hx * 1.8, z: b.z + (rand() - 0.5) * b.hz * 1.8, r: rand() * 6.28, s: 0.6 + rand() * 0.6, kind: rand() < 0.35 ? 'flower' : 'grass' });
   }
-  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants };
+  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants, bollards, bikeRacks, busStops, signs };
 }
 function tryTreeFree(arr, x, z, rand) { arr.push({ x, z, s: 0.8 + rand() * 0.6, r: rand() * 6.28, v: rand() }); }
 

@@ -6,6 +6,7 @@ import { heightAt } from '../../shared/map/terrain.js';
 // lights, keeping distance, braking for pedestrians and reacting to collisions.
 const TYPES = [['sedan', 30], ['suv', 14], ['taxi', 10], ['van', 8], ['truck', 5], ['sedan_old', 10], ['sports', 7], ['motorcycle', 6], ['police', 4]];
 const TOTAL_W = TYPES.reduce((s, t) => s + t[1], 0);
+const SIGNAL_GREEN = new THREE.Color('#2e7d32'), SIGNAL_AMBER = new THREE.Color('#f9a825'), SIGNAL_RED = new THREE.Color('#c62828');
 
 export class Traffic {
   constructor(game) {
@@ -95,10 +96,27 @@ export class Traffic {
     return group === phase && tt < cycle / 2 - 3;
   }
 
+  /** Colours the traffic-light signal heads (src/world/Props.js) to match lightGreen()'s
+   * red/green cycle, with a 3 s amber before each group's light goes red. */
+  updateLights() {
+    const w = this.game.world;
+    const heads = w?.trafficLightHeads, poles = w?.trafficLights;
+    if (!heads?.instanceColor || !poles) return;
+    const cycle = 26;
+    for (let i = 0; i < poles.length; i++) {
+      const p = poles[i];
+      const t = (this.time + p.node * 7.3) % cycle, phase = t < cycle / 2 ? 0 : 1, tt = t % (cycle / 2);
+      const col = p.group !== phase ? SIGNAL_RED : tt < cycle / 2 - 3 ? SIGNAL_GREEN : SIGNAL_AMBER;
+      col.toArray(heads.instanceColor.array, i * 3);
+    }
+    heads.instanceColor.needsUpdate = true;
+  }
+
   update(dt) {
     const g = this.game;
     if (!g.player || g.player.interior || g.inActivity) { if (this.cars.length && (g.player?.interior || g.inActivity)) this.clearAll(); return; }
     this.time += dt;
+    this.updateLights();
     const pp = g.player.pos;
     // maintain population
     for (let i = this.cars.length - 1; i >= 0; i--) {

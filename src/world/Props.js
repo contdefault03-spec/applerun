@@ -114,7 +114,9 @@ export function buildProps() {
   const rock = part(new THREE.DodecahedronGeometry(1, 0), '#7a746b');
   group.add(instanced(rock, vmat, P.rocks.map((r) => ({ ...r, y: y(r.x, r.z) })), (o, r) => { o.position.set(r.x, r.y, r.z); o.rotation.set(r.r, r.r * 2, 0); o.scale.set(r.s, r.s * 0.6, r.s); }));
 
-  // Traffic lights at big intersections
+  // Traffic lights at big intersections: one pole per approach group (0 = the road direction
+  // of the node's first edge, 1 = the perpendicular one), so each pair of opposite corners
+  // shows the same red/amber/green state — matching how Traffic.js's lightGreen() groups cars.
   const tl = [];
   for (const n of L.graph.nodes) {
     if (n.edges.length < 3) continue;
@@ -123,16 +125,73 @@ export function buildProps() {
     if (types.some((t) => t === 'mountain')) continue;
     const e0 = L.graph.edges[n.edges[0]];
     const w = L.roads[e0.road].width / 2 + 1.5;
-    tl.push({ x: n.x + w, z: n.z + w, node: n.id }, { x: n.x - w, z: n.z - w, node: n.id });
+    tl.push({ x: n.x + w, z: n.z + w, node: n.id, group: 0 }, { x: n.x - w, z: n.z - w, node: n.id, group: 0 });
+    tl.push({ x: n.x + w, z: n.z - w, node: n.id, group: 1 }, { x: n.x - w, z: n.z + w, node: n.id, group: 1 });
   }
   const tlGeo = mergeGeometries([
     part(new THREE.CylinderGeometry(0.08, 0.1, 4.2, 6), '#263238', 0, 2.1, 0),
     part(new THREE.BoxGeometry(0.35, 1.0, 0.3), '#1b1b1b', 0, 4.3, 0),
   ]);
-  group.add(instanced(tlGeo, vmat, tl.map((t) => ({ ...t, y: y(t.x, t.z) + 0.14 })), (o, t) => { o.position.set(t.x, t.y, t.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }));
+  const tlItems = tl.map((t) => ({ ...t, y: y(t.x, t.z) + 0.14 }));
+  const placeTl = (o, t) => { o.position.set(t.x, t.y, t.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); };
+  group.add(instanced(tlGeo, vmat, tlItems, placeTl));
+  // signal head: a small emissive box whose colour Traffic.js updates every frame (red/amber/green)
+  const headMat2 = new THREE.MeshStandardMaterial({ color: '#c62828', emissive: '#c62828', emissiveIntensity: 1.4 });
+  const tlHeadGeo = new THREE.BoxGeometry(0.32, 0.32, 0.14);
+  tlHeadGeo.translate(0, 4.32, 0.16);
+  const tlHeads = instanced(tlHeadGeo, headMat2, tlItems, placeTl, false);
+  tlHeads.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(tlItems.length * 3), 3);
+  tlHeads.instanceColor.setUsage(THREE.DynamicDrawUsage);
+  const red = new THREE.Color('#c62828');
+  for (let i = 0; i < tlItems.length; i++) red.toArray(tlHeads.instanceColor.array, i * 3);
+  tlHeads.instanceColor.needsUpdate = true;
+  tlHeads.userData.trafficHeads = true;
+  group.add(tlHeads);
   for (const t of tl) colliders.push({ kind: 'pole', x: t.x, z: t.z, hx: 0.12, hz: 0.12, rot: 0, y0: -1, y1: y(t.x, t.z) + 4 });
 
-  return { group, colliders, lampItems, trafficLights: tl };
+  // Bollards
+  const bollGeo = mergeGeometries([
+    part(new THREE.CylinderGeometry(0.09, 0.1, 0.85, 8), '#2b2f33', 0, 0.42, 0),
+    part(new THREE.CylinderGeometry(0.095, 0.095, 0.1, 8), '#f2c94c', 0, 0.55, 0),
+  ]);
+  const bollItems = P.bollards.map((b) => ({ ...b, y: y(b.x, b.z) + 0.14 }));
+  group.add(instanced(bollGeo, vmat, bollItems, (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }));
+  for (const b of bollItems) colliders.push({ kind: 'small', x: b.x, z: b.z, hx: 0.12, hz: 0.12, rot: 0, y0: -1, y1: b.y + 0.85 });
+
+  // Bike racks (three U-hoops on a base rail)
+  const hoop = (ox) => [
+    part(new THREE.TorusGeometry(0.28, 0.03, 6, 10, Math.PI), '#455a64', ox, 0.55, 0, Math.PI / 2, 0, Math.PI / 2),
+  ];
+  const rackGeo = mergeGeometries([
+    part(new THREE.BoxGeometry(1.6, 0.06, 0.06), '#37474f', 0, 0.05, 0),
+    ...hoop(-0.55), ...hoop(0), ...hoop(0.55),
+  ]);
+  const rackItems = P.bikeRacks.map((b) => ({ ...b, y: y(b.x, b.z) + 0.14 }));
+  group.add(instanced(rackGeo, vmat, rackItems, (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.rot, 0); o.scale.setScalar(1); }));
+  for (const b of rackItems) colliders.push({ kind: 'small', x: b.x, z: b.z, hx: 0.85, hz: 0.35, rot: b.rot, y0: -1, y1: b.y + 0.6 });
+
+  // Bus stops: pole + sign flag + a simple shelter (roof + back panel + bench)
+  const busGeo = mergeGeometries([
+    part(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6), '#37474f', -0.9, 1.2, 0),
+    part(new THREE.BoxGeometry(0.42, 0.3, 0.05), '#1565c0', -0.9, 2.15, 0),
+    part(new THREE.BoxGeometry(2.0, 0.08, 1.1), '#78909c', 0, 2.3, 0.4),
+    part(new THREE.BoxGeometry(2.0, 1.6, 0.05), '#b0bec5', 0.9, 1.1, 0.95, 0, 0, 0),
+    part(new THREE.BoxGeometry(1.6, 0.08, 0.4), '#8d6e4f', 0, 0.45, 0.55),
+  ]);
+  const busItems = P.busStops.map((b) => ({ ...b, y: y(b.x, b.z) + 0.14 }));
+  group.add(instanced(busGeo, vmat, busItems, (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.rot, 0); o.scale.setScalar(1); }));
+  for (const b of busItems) colliders.push({ kind: 'bench', x: b.x, z: b.z, hx: 1.0, hz: 0.6, rot: b.rot, y0: 0, y1: 2.3, walk: true });
+
+  // Street signs (stop-sign style octagon on a pole) at minor junctions
+  const signGeo = mergeGeometries([
+    part(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), '#78838a', 0, 1.2, 0),
+    part(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 8), '#c62828', 0, 2.35, 0, Math.PI / 2, 0, 0),
+  ]);
+  const signItems = P.signs.map((s) => ({ ...s, y: y(s.x, s.z) + 0.14 }));
+  group.add(instanced(signGeo, vmat, signItems, (o, s) => { o.position.set(s.x, s.y, s.z); o.rotation.set(0, s.rot, 0); o.scale.setScalar(1); }));
+  for (const s of signItems) colliders.push({ kind: 'pole', x: s.x, z: s.z, hx: 0.1, hz: 0.1, rot: 0, y0: -1, y1: s.y + 2.4 });
+
+  return { group, colliders, lampItems, trafficLights: tl, trafficHeads: tlHeads };
 }
 
 function containerTexture() {

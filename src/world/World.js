@@ -69,6 +69,7 @@ export class World {
     this.outdoor.add(props.group);
     props.group.traverse((o) => { if (o.userData.lampHeads) this.env.lampMaterials.push(o.material); if (o.userData.bob) this.boats = o; });
     this.trafficLights = props.trafficLights;
+    this.trafficLightHeads = props.trafficHeads;
     const trees = await step('Planting trees…', () => buildTrees(this.textures, this.medianTrees));
     trees.group.traverse((o) => { if (o.isInstancedMesh) o.layers.set(LAYER.MID); });
     this.outdoor.add(trees.group);
