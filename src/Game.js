@@ -359,6 +359,15 @@ export class Game {
       }
       case 'haircut': r('Fresh trim. Looking good — no gameplay effect, just style points.', 'good'); this.avatar.anim.play('interact'); break;
       case 'atm': r(`Balance: $${this.profile.money.toLocaleString()}`, 'info'); break;
+      case 'movieTicket': {
+        if (this.profile.money < 10) return r('A ticket costs $10.', 'bad');
+        const res = await this.net.request('reward', { kind: 'movieTicket' });
+        if (res.ok === false) return r(res.error || "Can't buy that right now.", 'bad');
+        if (res.profile) this.setProfile(res.profile);
+        r('Enjoy the show!');
+        break;
+      }
+      case 'cinemaPlay': this.interiors.toggleCinema(); break;
       case 'arcade': {
         if (this.profile.money < 5) return r('A game costs $5.', 'bad');
         const res = await this.net.request('reward', { kind: 'arcade' });

@@ -355,6 +355,32 @@ export class InteriorManager {
         it.npcSpots.push({ x: 2, z: 3, role: 'worker' }, { x: -4, z: 4, role: 'gang' });
         break;
       }
+      case 'cinema': {
+        // Entry is near +Z; lobby/ticket counter sits just inside the door, the screening room
+        // (screen + seats) fills the rest of the building, screen at the far -Z wall.
+        const lobbyZ0 = D / 2 - 3.5;
+        partition(0, lobbyZ0, W, 0.2, 0, 1.6);
+        place(Prefabs.counter(3, '#4a148c'), 0, D / 2 - 1.8);
+        place(Prefabs.plant(), -W / 2 + 1, D / 2 - 1);
+        it.npcSpots.push({ x: 0, z: D / 2 - 1.8, role: 'shopkeeper', yaw: Math.PI, fixed: true, name: 'Ticket Clerk' });
+        it.uses.push({ x: 0, z: D / 2 - 3.2, kind: 'movieTicket', label: 'Buy a ticket ($10)' });
+        const rows = 4, seatsPerRow = 6;
+        for (let r = 0; r < rows; r++) for (let sX = 0; sX < seatsPerRow; sX++) {
+          const x = -W / 2 + 1.5 + sX * (W - 3) / (seatsPerRow - 1), z = lobbyZ0 - 1.5 - r * 1.4;
+          place(Prefabs.chair('#4a148c'), x, z, Math.PI);
+          if (rnd() < 0.5) it.npcSpots.push({ x, z: z + 0.35, role: 'civilian', sit: true });
+        }
+        // screen, at the far wall
+        const screenW = W * 0.85, screenH = screenW * 9 / 16;
+        const screenMat = mat('#0a0a0a', { emissive: '#111111', emissiveIntensity: 0 });
+        const screen = new THREE.Mesh(new THREE.PlaneGeometry(screenW, screenH), screenMat);
+        screen.position.set(0, screenH / 2 + 0.6, -D / 2 + 0.15); g.add(screen);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(screenW + 0.4, screenH + 0.4, 0.1), mat('#1b1b1b'));
+        frame.position.set(0, screenH / 2 + 0.6, -D / 2 + 0.05); g.add(frame);
+        it.screen = { mesh: screen, mat: screenMat };
+        it.uses.push({ x: 0, z: -D / 2 + 1.3, kind: 'cinemaPlay', label: 'Press E to play/stop the movie' });
+        break;
+      }
       case 'dome': {
         // wrestling ring in the middle with stands around
         const ring = this.game.activities?.buildRing ? this.game.activities.buildRing() : null;
@@ -413,6 +439,47 @@ export class InteriorManager {
     for (const d of it.discoTiles) d.mesh.material.emissive.copy(hue(d.phase * 0.1));
     for (let i = 0; i < this.pool.length; i++) if (it.lights[i]) this.pool[i].color.copy(hue(i / this.pool.length));
   }
+  /** Cinema screen: press E to play/stop the supplied film as a real video texture, with
+   * positional audio at the screen. Lazily creates the <video>/VideoTexture on first play so
+   * an unvisited cinema costs nothing. Stops (not just hides) when the player leaves. */
+  toggleCinema() {
+    const it = this.current;
+    if (!it || it.type !== 'cinema' || !it.screen) return;
+    const g = this.game;
+    if (!it.screen.video) {
+      const video = document.createElement('video');
+      video.src = g.assets.url('cinemaVideo');
+      video.crossOrigin = 'anonymous';
+      video.loop = true;
+      video.playsInline = true;
+      video.muted = true; // unmuted once routed through WebAudio below
+      const tex = new THREE.VideoTexture(video);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      it.screen.mat.map = tex;
+      it.screen.mat.emissiveMap = tex;
+      it.screen.mat.needsUpdate = true;
+      it.screen.video = video;
+    }
+    const video = it.screen.video;
+    if (video.paused) {
+      g.audio.init().then(() => {
+        if (!it.screen.panner && g.audio.ctx) {
+          const src = g.audio.ctx.createMediaElementSource(video);
+          const p = it.origin, sy = it.screen.mesh.position.y;
+          const panner = g.audio.out('sfx', { x: p.x + it.screen.mesh.position.x, y: sy, z: p.z + it.screen.mesh.position.z }, { ref: 4, max: 40 });
+          src.connect(panner);
+          it.screen.panner = panner;
+        }
+        video.muted = false;
+        video.play().catch(() => {});
+      });
+      it.screen.mat.emissiveIntensity = 1;
+    } else {
+      video.pause();
+      it.screen.mat.emissiveIntensity = 0;
+    }
+  }
+  stopCinema(it) { if (it?.screen?.video && !it.screen.video.paused) { it.screen.video.pause(); it.screen.mat.emissiveIntensity = 0; } }
   // Move the pooled interior lights into the occupied interior's light slots (or switch them off).
   applyLights(it) {
     for (let i = 0; i < this.pool.length; i++) {
@@ -431,6 +498,7 @@ export class InteriorManager {
     await this.fadeTo(1);
     g.audio.door(g.player.pos);
     if (this.clubAudio) { this.clubAudio.stop(); this.clubAudio = null; }
+    this.stopCinema(it);
     it.group.visible = false;
     this.current = null;
     this.applyLights(null);
