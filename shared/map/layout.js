@@ -752,7 +752,31 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand) {
     if (isWaterPx(px, py)) continue;
     (rand() < 0.5 ? hydrants : bins).push({ x, z, rot: rand() * 6 });
   }
-  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences };
+  // Plants: bushes/hedges around house gardens, flower/grass patches in parks
+  const plants = [];
+  const houseTypes = new Set(['house', 'villa', 'beach_house', 'cabin', 'farmhouse']);
+  for (const b of buildings) {
+    if (!houseTypes.has(b.type)) continue;
+    const n = 3 + Math.floor(rand() * 4);
+    for (let i = 0; i < n; i++) {
+      const edge = Math.floor(rand() * 4);
+      const along = (rand() - 0.5) * 2;
+      const lx = edge < 2 ? (edge === 0 ? -1 : 1) * (b.hx + 0.9 + rand() * 0.6) : along * b.hx * 0.85;
+      const lz = edge >= 2 ? (edge === 2 ? -1 : 1) * (b.hz + 0.9 + rand() * 0.6) : along * b.hz * 0.85;
+      const c = Math.cos(b.rot), s = Math.sin(b.rot);
+      const x = b.x + lx * c + lz * s, z = b.z - lx * s + lz * c;
+      const [px, py] = toPx(x, z);
+      if (isWaterPx(px, py)) continue;
+      const n2 = roadIndex.nearest(x, z, 6);
+      if (n2 && n2.d < n2.road.width / 2 + 0.5) continue;
+      plants.push({ x, z, r: rand() * 6.28, s: 0.7 + rand() * 0.6, kind: rand() < 0.3 ? 'flower' : 'bush' });
+    }
+  }
+  for (const key of ['plazaPark']) {
+    const b = L[key];
+    for (let i = 0; i < 40; i++) plants.push({ x: b.x + (rand() - 0.5) * b.hx * 1.8, z: b.z + (rand() - 0.5) * b.hz * 1.8, r: rand() * 6.28, s: 0.6 + rand() * 0.6, kind: rand() < 0.35 ? 'flower' : 'grass' });
+  }
+  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants };
 }
 function tryTreeFree(arr, x, z, rand) { arr.push({ x, z, s: 0.8 + rand() * 0.6, r: rand() * 6.28, v: rand() }); }
 
