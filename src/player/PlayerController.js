@@ -45,11 +45,28 @@ export class PlayerController {
     const now = performance.now();
     if (!this.limitNoticeAt || now - this.limitNoticeAt > 6000) { this.limitNoticeAt = now; this.game.ui?.notify('The current is too strong to swim further out. You would need a boat.', 'info'); }
   }
+  /** Admin/debug "fly" mode (Stage 14): free camera-relative flight, no gravity or collision. */
+  updateFly(dt, cam, input, allowMove) {
+    const ax = allowMove ? input.axis() : { x: 0, y: 0 };
+    this.moveInput.set(ax.x, ax.y);
+    const speed = this.flySpeed || 20;
+    const fwd = new THREE.Vector3(-Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), -Math.cos(cam.yaw) * Math.cos(cam.pitch));
+    const right = new THREE.Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw));
+    const wish = new THREE.Vector3().addScaledVector(fwd, ax.y).addScaledVector(right, ax.x);
+    if (allowMove && input.down('sprint')) wish.y += 1; // Shift = up
+    if (allowMove && input.down('crouch')) wish.y -= 1; // Ctrl = down
+    if (wish.lengthSq() > 0) wish.normalize();
+    this.vel.set(wish.x * speed, wish.y * speed, wish.z * speed);
+    this.pos.x += this.vel.x * dt; this.pos.y += this.vel.y * dt; this.pos.z += this.vel.z * dt;
+    this.avatar.yaw = cam.yaw + Math.PI;
+    this.onGround = false; this.swimming = false; this.crouch = false;
+  }
   update(dt, cam, { aiming = false, allowMove = true } = {}) {
     const input = this.game.input;
     const col = this.game.world.collision;
     this.aiming = aiming;
     if (this.mode !== 'foot') return;
+    if (this.flying) { this.updateFly(dt, cam, input, allowMove); return; }
     const ax = allowMove ? input.axis() : { x: 0, y: 0 };
     this.moveInput.set(ax.x, ax.y);
     if (input.hit('crouch')) this.crouch = !this.crouch;

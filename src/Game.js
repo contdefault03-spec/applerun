@@ -30,6 +30,7 @@ import { Jobs } from './systems/Jobs.js';
 import { Emergency } from './systems/Emergency.js';
 import { Events } from './systems/Events.js';
 import { FishingMission } from './systems/FishingMission.js';
+import { AdminMenu } from './systems/AdminMenu.js';
 import { ActivityManager } from './activities/ActivityManager.js';
 import { VoiceChat } from './net/VoiceChat.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
@@ -87,6 +88,7 @@ export class Game {
     this.emergency = this.addSystem(new Emergency(this));
     this.events = this.addSystem(new Events(this));
     this.fishing = this.addSystem(new FishingMission(this));
+    this.admin = new AdminMenu(this);
     this.dialogue = new Dialogue(this);
     progress(0.9, 'Dressing up the citizens of Applerun…');
     await this.npcs.prebuild();
@@ -129,6 +131,12 @@ export class Game {
       else if (b('emote')) this.emote();
       else if (b('phone')) this.ui.showPhone?.();
       else if (b('inventory')) this.ui.showInventory?.();
+      else if (b('admin')) { this.suppressPause = true; this.admin.toggle(); }
+      else if (b('jump') && this.player) {
+        const t = performance.now();
+        if (this.lastJumpAt && t - this.lastJumpAt < 350) this.admin.toggleFly(!this.player.flying);
+        this.lastJumpAt = t;
+      }
     });
   }
 
@@ -342,7 +350,7 @@ export class Game {
     else this.handleFx?.(kind, r, a);
   }
   damageSelf(amount, cause = 'world') {
-    if (!this.player || this.player.mode === 'dead') return;
+    if (!this.player || this.player.mode === 'dead' || this.adminGod) return;
     if (this.net.connected && this.net.room) this.net.send('selfDamage', { amount, cause });
     else this.applyLocalDamage(amount, cause);
   }

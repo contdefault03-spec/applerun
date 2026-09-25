@@ -56,7 +56,7 @@ class Client {
 }
 
 class Room {
-  constructor(mgr, { kind = 'world', mode = 'freeroam', size = '', private: priv = false, name, hostId }) {
+  constructor(mgr, { kind = 'world', mode = 'freeroam', size = '', private: priv = false, name, hostId, cheats = false }) {
     this.mgr = mgr;
     this.code = code6();
     while (mgr.rooms.has(this.code)) this.code = code6();
@@ -71,9 +71,10 @@ class Room {
     this.time = 13;
     this.created = now();
     this.pvp = kind === 'world' ? true : mode === 'combat';
+    this.cheats = kind === 'world' && !!cheats;
     this.activity = kind === 'activity' ? createActivity(this, mode, size) : null;
   }
-  info() { return { code: this.code, kind: this.kind, mode: this.mode, size: this.size, private: this.private, name: this.name, players: this.clients.size, max: this.max, hostId: this.hostId, pvp: this.pvp }; }
+  info() { return { code: this.code, kind: this.kind, mode: this.mode, size: this.size, private: this.private, name: this.name, players: this.clients.size, max: this.max, hostId: this.hostId, pvp: this.pvp, cheats: this.cheats }; }
   broadcast(o, except = null) { const s = JSON.stringify(o); for (const c of this.clients.values()) if (c !== except && c.ws.readyState === 1) c.ws.send(s); }
   near(o, x, z, dist, except = null) { const s = JSON.stringify(o); for (const c of this.clients.values()) if (c !== except && c.ws.readyState === 1 && Math.hypot(c.state.x - x, c.state.z - z) < dist) c.ws.send(s); }
   playerInfo(c) { return { id: c.id, name: c.name, character: c.character, team: c.team, hp: c.hp, dead: c.dead, passive: c.passive, wanted: c.wanted }; }
@@ -153,7 +154,7 @@ export class RoomManager {
       case 'createRoom': {
         const kind = d.kind === 'activity' ? 'activity' : 'world';
         const mode = kind === 'world' ? 'freeroam' : (['combat', 'football', 'basketball', 'wrestling'].includes(d.mode) ? d.mode : 'combat');
-        const r = new Room(this, { kind, mode, size: clean(d.size, 6), private: d.private !== false, name: d.name, hostId: c.id });
+        const r = new Room(this, { kind, mode, size: clean(d.size, 6), private: d.private !== false, name: d.name, hostId: c.id, cheats: !!d.cheats });
         this.rooms.set(r.code, r);
         return this.join(c, r);
       }
@@ -199,6 +200,22 @@ export class RoomManager {
       case 'taxiJob': return this.taxiJob(c);
       case 'taxiPickup': return this.taxiPickup(c);
       case 'taxiDropoff': return this.taxiDropoff(c);
+      case 'cheat': {
+        const room = c.room;
+        if (!room || room.kind !== 'world' || (room.hostId !== c.id && !room.cheats)) return { ok: false, error: 'Cheats are off in this room' };
+        const op = d.op;
+        if (op === 'god') { c.godMode = !!d.on; return { ok: true }; }
+        if (op === 'heal') { c.hp = 100; c.armor = 100; c.profile.armor = 100; c.dirtyProfile = true; room.broadcast({ t: 'hit', to: c.id, from: null, dmg: 0, hp: 100, armor: 100, head: false, cause: 'admin' }); return { ok: true }; }
+        if (op === 'clearWanted') { c.wanted = 0; return { ok: true }; }
+        if (op === 'weapons') {
+          c.profile.weapons = Object.keys(WEAPONS);
+          c.profile.ammo ||= {};
+          for (const w of Object.values(WEAPONS)) if (w.mag) c.profile.ammo[w.id] = (w.mag + (w.reserve || w.mag * 3)) * 3;
+          c.dirtyProfile = true;
+          return { ok: true, profile: c.profile };
+        }
+        return { ok: false, error: 'unknown cheat' };
+      }
       case 'reward': {
         const kind = d.kind;
         if (kind === 'arrest') { const r = applyReward(c.profile, 'arrest', { fine: num(d.fine) }); c.dirtyProfile = true; c.wanted = 0; return { ...r, profile: c.profile }; }
@@ -521,7 +538,7 @@ export class RoomManager {
   }
   applyDamage(target, dmg, attacker, cause, head, extra = {}) {
     const room = target.room;
-    if (!room || target.dead) return;
+    if (!room || target.dead || target.godMode) return;
     if (target.armor > 0 && attacker) { const a = Math.min(target.armor, dmg * 0.5); target.armor -= a; dmg -= a; target.profile.armor = Math.round(target.armor); target.dirtyProfile = true; }
     target.hp = Math.max(0, target.hp - dmg);
     room.broadcast({ t: 'hit', to: target.id, from: attacker?.id || null, dmg: Math.round(dmg), hp: Math.round(target.hp), armor: Math.round(target.armor), head, cause, knock: !!extra.knock });

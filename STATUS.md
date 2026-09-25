@@ -195,16 +195,11 @@ Never break existing gameplay or multiplayer.
 - **Not fully covered:** cinemas, clinics/pharmacies, banks and other Stage-5 building types that don't exist yet obviously don't have map icons either — the map shows every type of *named* place that currently exists in the world, which was the intent ("all named places must match real enterable buildings"). Houses/apartments/villas are deliberately not plotted individually (hundreds of them, not individually named) — only commercial/landmark places are.
 - Notes: `src/ui/HUD.js` (`#bigmap`), `src/core/Settings.js`, `src/Game.js`.
 
-### Stage 14: admin/debug menu (key 9)
-- Pressing 9 opens a menu with:
-  - God mode (no damage).
-  - Fly mode: double-tap Space to start flying; Shift = up, Ctrl = down, WASD to move; double-tap Space again to stop.
-  - Fly speed slider.
-  - Give all weapons + max ammo.
-  - Heal / refill armour.
-  - Teleport to any named place (use the K map list).
-  - Clear wanted level.
-- In multiplayer only the room host can use it, or add a "cheats allowed" setting when creating a room, so it can't be abused in public rooms. Enforce this on the server.
+### Stage 14: admin/debug menu (key 9) — done
+- New `src/systems/AdminMenu.js`, opened with the `admin` binding (`Digit9` by default, remappable like every other key). Has: God mode (no damage — client flag for solo, server `godMode` flag checked in `Room.applyDamage`, the one choke point all server-side damage already went through, for multiplayer); Fly mode (checkbox, or double-tap Space per the brief — `PlayerController.updateFly`: WASD relative to camera, Shift up, Ctrl down, no gravity/collision) with a speed slider; "Give all weapons + max ammo"; "Heal / refill armour"; "Clear wanted level"; and "Teleport to…", a dropdown built from the same named-place list the K map uses (police, hospital, gun stores, garage, gym, taxi depot, safehouse, café, bar, clothing, hotel, and every major landmark including the new ski resort and pier).
+- **Multiplayer gating, done on the server, not just hidden client-side:** a new `cheat` request in `server/rooms.js` refuses every op unless `room.hostId === c.id || room.cheats`; `room.cheats` is a new per-room flag set from a "Cheats allowed" checkbox in the create-room dialog (`UIManager.js`) and passed through `createRoom`. Weapon-granting and healing go through this request and mutate the server's own `c.profile`/`c.hp`/`c.armor`, the same fields normal gameplay already treats as authoritative — a non-host player in a cheats-off room gets an error, not a silently-ignored button. Fly mode and the teleport list are pure client-side position changes (same trust level as normal movement/teleport already has) and aren't gated.
+- Verified end-to-end in a scripted check: god mode blocks `damageSelf`, fly mode moves at the slider speed with no gravity, "give weapons" populates `profile.weapons`, teleport lands within 1 m of the target, and the panel opens/closes cleanly.
+- Notes: `src/systems/AdminMenu.js`, `src/player/PlayerController.js` (`updateFly`), `server/rooms.js` (`cheat` request, `Room.cheats`, `applyDamage`'s `godMode` check), `src/ui/UIManager.js` (create-room checkbox).
 
 ### Finish
 - Update `README.md`, `STATUS.md`, `CLAUDE.md` and `CREDITS.md`.

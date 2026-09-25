@@ -260,11 +260,13 @@ export class UIManager {
     };
     refresh();
     const priv = h('input', { type: 'checkbox', checked: true });
+    const cheats = h('input', { type: 'checkbox', checked: false });
     this.modal('Multiplayer', h('div',
       h('h3', 'Join with a code'),
       h('div.row', code, h('button.btn.primary', { onclick: () => { const c = code.value.trim().toUpperCase(); if (c.length < 4) return; this.closeModal(); g.joinRoom(c); } }, 'Join')),
       h('h3', 'Create a free-roam world'),
-      h('div.row', h('label.row', priv, 'Private (invite with code)'), h('div.spacer'), h('button.btn.primary', { onclick: () => { this.closeModal(); g.createRoom({ kind: 'world', private: priv.checked }); } }, 'Create room')),
+      h('div.row', h('label.row', priv, 'Private (invite with code)'), h('div.spacer'), h('button.btn.primary', { onclick: () => { this.closeModal(); g.createRoom({ kind: 'world', private: priv.checked, cheats: cheats.checked }); } }, 'Create room')),
+      h('div.row', h('label.row', cheats, 'Cheats allowed (everyone can use the admin menu, not just the host)')),
       h('h3.row', 'Public server browser'),
       h('div.row', h('div.spacer'), h('button.btn.small', { onclick: refresh }, 'Refresh')),
       list,
