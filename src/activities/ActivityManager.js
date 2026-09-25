@@ -412,7 +412,7 @@ export class ActivityManager {
       if (m.leftPressed || m.rightPressed) s.charge = 0;
       if (m.left || m.right) { s.charge = Math.min(1, (s.charge || 0) + dt * 1.2); g.hud.setMeter(s.charge); }
       const camF = new THREE.Vector3(); g.engine.camera.getWorldDirection(camF);
-      if (m.leftReleased) { this.send('kick', { dx: camF.x, dz: camF.z, power: 0.25 + (s.charge || 0) * 0.45, loft: (s.charge || 0) > 0.7 ? 0.35 : 0 }); g.hud.setMeter(null); }
+      if (m.leftReleased) { this.send('kick', { dx: camF.x, dz: camF.z, power: 0.25 + (s.charge || 0) * 0.45, loft: Math.max(0, (s.charge || 0) - 0.25) * 0.5 }); g.hud.setMeter(null); }
       if (m.rightReleased) { this.send('kick', { dx: camF.x, dz: camF.z, power: 0.55 + (s.charge || 0) * 0.45, loft: 0.15 + Math.max(0, g.cam.pitch + 0.1) }); g.hud.setMeter(null); }
       if (inp.hit('interact')) { this.send('tackle'); g.avatar.anim.play('tackle'); }
     } else if (s.mode === 'basketball') {

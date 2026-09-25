@@ -178,13 +178,10 @@ Never break existing gameplay or multiplayer.
   - An in-world "army barracks" entrance — combat (like the other activities) is currently entered through the Activities menu, not a walk-up building.
 - Notes: `server/activities/combat.js`, `src/activities/ActivityManager.js`, `src/combat/WeaponManager.js`, `shared/weapons.js`.
 
-### Stage 11: football upgrade
-- **Possession:** when a pass reaches you, the ball sticks to your feet (close dribble control) until you pass, shoot or get tackled. When someone tackles you and wins it, the ball sticks to them instead.
-- **Power matters:** charging a shot or pass longer makes the ball rise off the ground (chips, lobs, high shots); short taps stay low.
-- **Smarter AI:**
-  - Players who aren't near the ball move into open space, make runs, spread wide and call for passes, instead of everyone chasing the ball.
-  - Defenders mark and hold shape; the keeper positions and dives.
-  - AI passes to open teammates and shoots when it makes sense.
+### Stage 11: football upgrade — possession done; AI was already decent
+- **Possession, done this commit:** `shared/sports/football.js` now has a real `possessor` field. A loose, slow (< 7 m/s), low ball sticks to the nearest eligible player (`stepBall`) and is carried at their feet each frame instead of being a free physics object; it's released on `kick()` (pass/shoot) and re-picked-up by whoever gets there next. `tackle()` now gives the tackler outright possession ~55% of the time on a successful challenge ("wins it, the ball sticks to them instead"); the rest of the time it squirts loose for anyone to chase. Verified with a scripted step-by-step check (pickup + carry-with-player).
+- **Power/loft:** shots already scaled loft with aim (camera pitch) rather than charge; passes only had a binary "lob past 70% charge" — changed to scale continuously with charge (`ActivityManager.js`) so a longer hold gives a proportionally higher chip, not a step function.
+- **Smarter AI — already mostly in place before this pass** (found, not newly built): `stepAI` already picks a single chaser per team (not everyone piling on the ball), holds off-ball players in shape shifted toward the ball, pushes forwards up to make runs, has the keeper commit out of the box when the ball is close and deep in their third, and already scores passes by teammate advancement + how open they are before choosing to pass, dribble or shoot. Not changed further this pass.
 - Notes: `shared/sports/football.js` (runs on the server for rooms, locally for solo).
 
 ### Stage 12: basketball upgrade

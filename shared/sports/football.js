@@ -23,6 +23,7 @@ export class FootballSim {
     this.time = 0; this.phaseT = 0;
     this.kickoffTeam = 0;
     this.lastTouch = null;
+    this.possessor = null; // id of the player the ball is stuck to (close dribble control), or null when loose
     this.events = [];
   }
   // ------------------------------------------------------------------ roster
@@ -47,6 +48,7 @@ export class FootballSim {
   kickoff(team) {
     this.phase = 'kickoff'; this.phaseT = 0; this.kickoffTeam = team;
     Object.assign(this.ball, { x: 0, y: BALL_R, z: 0, vx: 0, vy: 0, vz: 0 });
+    this.possessor = null;
     for (const p of this.players) { p.x = p.hx * (p.role === 'FWD' && p.team === team ? 0.2 : 1); p.z = p.hz; p.vx = p.vz = 0; }
     this.events.push({ type: 'kickoff', team });
   }
@@ -71,6 +73,7 @@ export class FootballSim {
     const b = this.ball;
     if (Math.hypot(b.x - p.x, b.z - p.z) > 1.7 || b.y > 1.6 || p.cool > 0) return false;
     if (this.phase === 'kickoff') { if (p.team !== this.kickoffTeam) return false; this.phase = 'play'; }
+    this.possessor = null;
     const L = Math.hypot(dx, dz) || 1;
     power = Math.max(0.15, Math.min(1, power));
     const speed = speedOverride || 8 + power * 22;
@@ -89,7 +92,13 @@ export class FootballSim {
     const b = this.ball;
     if (Math.hypot(b.x - p.x, b.z - p.z) < 2.2) {
       const owner = this.nearestTo(b.x, b.z, (q) => q !== p);
-      if (owner && Math.hypot(owner.x - b.x, owner.z - b.z) < 1.4 && owner.team !== p.team) owner.stun = 0.8;
+      if (owner && Math.hypot(owner.x - b.x, owner.z - b.z) < 1.4 && owner.team !== p.team) {
+        owner.stun = 0.8;
+        // win the ball outright ~55% of the time: it sticks to the tackler instead of the
+        // owner; otherwise it just squirts loose for anyone to chase
+        if (Math.random() < 0.55) { this.possessor = p.id; this.lastTouch = p.id; return true; }
+      }
+      this.possessor = null;
       const a = Math.random() * Math.PI * 2;
       b.vx = Math.cos(a) * 6 + (b.x - p.x) * 2; b.vz = Math.sin(a) * 6 + (b.z - p.z) * 2;
       this.lastTouch = p.id;
@@ -118,18 +127,25 @@ export class FootballSim {
 
   stepBall(dt) {
     const b = this.ball;
-    // dribble assist: a moving human right next to the ball pushes it ahead of them
-    if (this.phase === 'play' && b.y < 0.5) {
+    // Possession: a loose, low, slow-enough ball sticks to whoever gets close (close dribble
+    // control) until they pass, shoot, or a tackle wins it off them — see kick()/tackle().
+    if (this.phase === 'play' && !this.possessor && b.y < 0.6 && Math.hypot(b.vx, b.vz) < 7) {
       for (const p of this.players) {
-        if (!p.human || p.stun > 0) continue;
-        const d = Math.hypot(b.x - p.x, b.z - p.z);
-        const sp = Math.hypot(p.vx, p.vz);
-        if (d < 0.95 && sp > 1) {
-          const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
-          b.vx = fx * sp * 1.15; b.vz = fz * sp * 1.15;
-          b.x = p.x + fx * 0.7; b.z = p.z + fz * 0.7;
-          this.lastTouch = p.id;
-        }
+        if (p.stun > 0 || p.cool > 0) continue;
+        if (Math.hypot(b.x - p.x, b.z - p.z) < 0.85) { this.possessor = p.id; break; }
+      }
+    }
+    if (this.possessor) {
+      const p = this.player(this.possessor);
+      if (!p) this.possessor = null;
+      else {
+        const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+        const tx = p.x + fx * 0.55, tz = p.z + fz * 0.55;
+        b.x += (tx - b.x) * Math.min(1, dt * 12); b.z += (tz - b.z) * Math.min(1, dt * 12);
+        b.y += (BALL_R - b.y) * Math.min(1, dt * 12);
+        b.vx = p.vx; b.vz = p.vz; b.vy = 0;
+        this.lastTouch = p.id;
+        return; // no free-flight physics while possessed
       }
     }
     b.vy -= 9.8 * dt;
