@@ -174,8 +174,11 @@ export class HUD {
     g.strokeStyle = 'rgba(255,255,255,0.3)'; g.lineWidth = 4; g.beginPath(); g.arc(R, R, R - 2, 0, Math.PI * 2); g.stroke();
   }
 
-  // Full screen map with click-to-set waypoint
-  toggleMap(state) {
+  // Full screen map with click-to-set waypoint.
+  // M = simple map: only the key survival icons. K = detailed map: every named place, with
+  // pan (drag) and zoom (wheel).
+  toggleMap(opts = {}) {
+    const detailed = !!opts.detailed;
     if (this.mapEl) { this.mapEl.remove(); this.mapEl = null; this.game.input.enabled = true; this.game.input.lock(); return; }
     this.game.input.unlock();
     this.game.input.enabled = false;
@@ -186,17 +189,37 @@ export class HUD {
       g.drawImage(this.mapImg, 0, 0, 995, 1091, 0, 0, 995, 1091);
       const st = this.game.hudState();
       const dot = (x, z, col, r = 7, label) => { const [a, b] = toPx(x, z); g.fillStyle = col; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.arc(a, b, r, 0, 7); g.fill(); g.stroke(); if (label) { g.font = 'bold 14px Arial'; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 3; g.strokeText(label, a + 10, b + 5); g.fillText(label, a + 10, b + 5); } };
-      for (const [key, col, label] of [['police', '#4fa3ff', 'Police'], ['police2', '#4fa3ff', 'Police'], ['hospital', '#ff4757', 'Hospital'], ['gunstore1', '#ffc53d', 'Guns'], ['gunstore2', '#ffc53d', 'Guns'], ['gym', '#bbb', 'Gym'], ['taxi_depot', '#ffd23f', 'Taxi'], ['garage', '#00e5ff', 'Garage'], ['safehouse', '#80cbc4', 'Safehouse'], ['clothing', '#c86bff', 'Threads']]) {
+      // key survival icons: always shown on both maps
+      for (const [key, col, label] of [['police', '#4fa3ff', 'Police'], ['police2', '#4fa3ff', 'Police'], ['hospital', '#ff4757', 'Hospital'], ['gunstore1', '#ffc53d', 'Guns'], ['gunstore2', '#ffc53d', 'Guns'], ['garage', '#00e5ff', 'Garage'], ['safehouse', '#80cbc4', 'Safehouse']]) {
         const b = L.buildings[L.special[key]]; if (b) dot(b.door.x, b.door.z, col, 6, label);
       }
-      for (const [key, label] of [['stadium', 'Stadium (football)'], ['arena', 'Arena (basketball)'], ['dome', 'Dome (wrestling)']]) { const b = L.landmarks[key]; dot(b.x, b.z, '#3ddc84', 8, label); }
+      const hotel = L.buildings.find((b) => b.type === 'hotel');
+      if (hotel) dot(hotel.door.x, hotel.door.z, '#80cbc4', 6, 'Hotel room');
+      const fishingBoat = L.vehicleSpawns.find((v) => v.fixed === 'fishingBoat');
+      if (fishingBoat) dot(fishingBoat.x, fishingBoat.z, '#ffd23f', 6, 'Fishing trip');
+      if (detailed) {
+        // every named/commercial place, not just the survival essentials
+        for (const [key, col, label] of [['gym', '#bbb', 'Gym'], ['taxi_depot', '#ffd23f', 'Taxi'], ['clothing', '#c86bff', 'Threads'], ['cafe', '#d7a86e', 'Café'], ['diner', '#ff8a65', 'Diner'], ['bar', '#a1887f', 'Bar']]) {
+          const b = L.buildings[L.special[key]]; if (b) dot(b.door.x, b.door.z, col, 6, label);
+        }
+        for (const b of L.buildings) {
+          if (b.special) continue; // already drawn above
+          const label = { shop: 'Shop', restaurant: 'Restaurant', bar: 'Bar', nightclub: 'Nightclub', clothing: 'Clothing', gunstore: 'Guns', gym: 'Gym', office: 'Office' }[b.type];
+          if (label) dot(b.door.x, b.door.z, '#c86bff', 4, label);
+        }
+        for (const [key, label] of [['stadium', 'Stadium (football)'], ['arena', 'Arena (basketball)'], ['dome', 'Dome (wrestling)'], ['resort', 'Ski resort'], ['pier', 'Pier'], ['plazaPark', 'Park']]) { const b = L.landmarks[key]; if (b) dot(b.x, b.z, '#3ddc84', 8, label); }
+      } else {
+        for (const [key, label] of [['stadium', 'Stadium (football)'], ['arena', 'Arena (basketball)'], ['dome', 'Dome (wrestling)']]) { const b = L.landmarks[key]; dot(b.x, b.z, '#3ddc84', 8, label); }
+      }
       for (const b of st.blips || []) dot(b.x, b.z, b.color, 6);
       if (st.waypoint) dot(st.waypoint.x, st.waypoint.z, '#ff4fd8', 8, 'Waypoint');
       const [a, b] = toPx(st.x, st.z);
       g.save(); g.translate(a, b); g.rotate(-st.heading); g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2;
       g.beginPath(); g.moveTo(0, -12); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.fill(); g.stroke(); g.restore();
     };
+    let dragDist = 0;
     c.addEventListener('click', (e) => {
+      if (dragDist > 6) return; // was a pan drag, not a click
       const r = c.getBoundingClientRect();
       const mx = ((e.clientX - r.left) / r.width) * 995, my = ((e.clientY - r.top) / r.height) * 1091;
       const x = (mx - 500) * 1.2, z = (my - 545) * 1.2;
@@ -204,7 +227,23 @@ export class HUD {
       draw();
     });
     c.addEventListener('contextmenu', (e) => { e.preventDefault(); this.game.setWaypoint(null); draw(); });
-    this.mapEl = h('div#bigmap', h('div.wrap', c), h('div.legend.panel', h('b', 'Alfredo Applerun'), h('div.muted', 'Click to set a waypoint · right-click to clear · M to close'), h('div', '● You  ', h('span', { style: { color: '#ff4fd8' } }, '● Waypoint')), h('div', { style: { color: '#4fa3ff' } }, '● Players / police'), h('div', { style: { color: '#3ddc84' } }, '● Activities')));
+    if (detailed) {
+      // zoom (wheel) + pan (drag) — click-to-waypoint math above already reads the actual
+      // on-screen rect via getBoundingClientRect, so it stays correct under this CSS transform
+      let k = 1, tx = 0, ty = 0, dragging = false, lastX = 0, lastY = 0;
+      c.style.transformOrigin = '0 0'; c.style.cursor = 'grab';
+      const applyT = () => { c.style.transform = `translate(${tx}px, ${ty}px) scale(${k})`; };
+      c.addEventListener('wheel', (e) => { e.preventDefault(); k = Math.max(1, Math.min(6, k * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); applyT(); });
+      c.addEventListener('mousedown', (e) => { dragging = true; dragDist = 0; lastX = e.clientX; lastY = e.clientY; c.style.cursor = 'grabbing'; });
+      window.addEventListener('mouseup', () => { dragging = false; c.style.cursor = 'grab'; });
+      window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - lastX, dy = e.clientY - lastY;
+        tx += dx; ty += dy; dragDist += Math.abs(dx) + Math.abs(dy);
+        lastX = e.clientX; lastY = e.clientY; applyT();
+      });
+    }
+    this.mapEl = h('div#bigmap', h('div.wrap', c), h('div.legend.panel', h('b', 'Alfredo Applerun'), h('div.muted', detailed ? 'Drag to pan · scroll to zoom · click to set a waypoint · right-click to clear · K to close' : 'Click to set a waypoint · right-click to clear · M to close'), h('div', '● You  ', h('span', { style: { color: '#ff4fd8' } }, '● Waypoint')), h('div', { style: { color: '#4fa3ff' } }, '● Players / police'), h('div', { style: { color: '#3ddc84' } }, '● Activities')));
     document.getElementById('ui').append(this.mapEl);
     draw();
     void districtAt;

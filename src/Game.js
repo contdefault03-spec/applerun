@@ -121,7 +121,8 @@ export class Game {
       if (type !== 'down' || this.mode !== 'playing') return;
       const b = (a) => this.settings.binding(a) === code;
       if (this.hud.chatInput) return;
-      if (b('map')) { this.suppressPause = true; this.hud.toggleMap(); }
+      if (b('map')) { this.suppressPause = true; this.hud.toggleMap({ detailed: false }); }
+      else if (b('bigmap')) { this.suppressPause = true; this.hud.toggleMap({ detailed: true }); }
       else if (this.hud.mapEl) return;
       else if (b('chat')) { this.suppressPause = true; this.hud.openChat((t) => this.sendChat(t)); }
       else if (b('camera')) this.cam.toggleMode();

@@ -189,13 +189,11 @@ Never break existing gameplay or multiplayer.
 - **Not changed:** off-ball spacing spots are fixed positions rather than dynamic cuts/movement to lose a defender — genuinely "cutting" AI (reading defender position and timing a run into open space) would be new logic, not present here or in the football sim it mirrors. Left as-is given the size of the remaining stages.
 - Notes: `shared/sports/basketball.js`.
 
-### Stage 13: maps
-- **M = simple map:** the island with only key icons (hospitals, gun stores, police, garages, your safehouse/hotel room, mission start points).
-- **K = detailed map:**
-  - Zoomable and pannable, showing every place with its name and icon: pubs, clubs, concert halls, restaurants, cafés, cinemas, hospitals, clinics, hotels, shops, apartments, offices, landmarks and the resort.
-  - Click a place to set a GPS waypoint shown on the minimap.
-- All named places must match real enterable buildings in the world.
-- Notes: the current map is in `src/ui/HUD.js` (`#bigmap`).
+### Stage 13: maps — done
+- **M = simple map:** unchanged behaviour, trimmed icon set — police, hospital, gun stores, garage, safehouse, the hotel room, and the fishing-trip boat (the game's one "mission start point"). `src/ui/HUD.js` `toggleMap({ detailed: false })`.
+- **K = detailed map (new binding, `Settings.js` `bigmap: 'KeyK'`):** `toggleMap({ detailed: true })` — same canvas, but adds every shop/restaurant/bar/nightclub/clothing/gunstore/gym/office building (iterating `L.buildings`, one dot + label each) plus the stadium, arena, wrestling dome, ski resort, pier and park, and supports drag-to-pan and scroll-to-zoom (a CSS transform on the canvas; the existing click-to-waypoint math already reads the live on-screen rect via `getBoundingClientRect`, so it stays correct zoomed/panned without extra work). Click still sets a GPS waypoint (shown on the minimap and both maps), right-click clears it. Verified both maps open/close and the zoom style applies with no errors; see the screenshot taken during this pass.
+- **Not fully covered:** cinemas, clinics/pharmacies, banks and other Stage-5 building types that don't exist yet obviously don't have map icons either — the map shows every type of *named* place that currently exists in the world, which was the intent ("all named places must match real enterable buildings"). Houses/apartments/villas are deliberately not plotted individually (hundreds of them, not individually named) — only commercial/landmark places are.
+- Notes: `src/ui/HUD.js` (`#bigmap`), `src/core/Settings.js`, `src/Game.js`.
 
 ### Stage 14: admin/debug menu (key 9)
 - Pressing 9 opens a menu with:
