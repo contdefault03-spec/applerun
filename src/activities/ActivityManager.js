@@ -119,16 +119,15 @@ export class ActivityManager {
 
   // ------------------------------------------------------------------ lobby UI (non-blocking panel)
   // Combat scoreboard (Tab), shown during live rounds when the buy/team lobby panel is hidden:
-  // kills, deaths and match money per player. There's no assist tracking on the server yet, so
-  // that column always reads "–".
+  // kills, deaths, assists and match money per player.
   renderScoreboard() {
     const g = this.game, s = this.s, L = s?.lobby;
     if (!s || s.mode !== 'combat' || !L) return;
     const teamOf = new Map(L.teams), cashOf = new Map(L.cash || []);
     const row = (id) => {
-      const kd = L.kd?.find((k) => k[0] === id) || [id, 0, 0];
+      const kd = L.kd?.find((k) => k[0] === id) || [id, 0, 0, 0];
       const nm = id === g.net.id ? `${g.settings.get('player.name')} (you)` : g.mp.remotes.get(id)?.avatar.name || id;
-      return h('tr', h('td', nm), h('td', kd[1]), h('td', kd[2]), h('td', '–'), h('td', `$${cashOf.get(id) ?? 0}`));
+      return h('tr', h('td', nm), h('td', kd[1]), h('td', kd[2]), h('td', kd[3] ?? 0), h('td', `$${cashOf.get(id) ?? 0}`));
     };
     const ids = (t) => [...teamOf.entries()].filter(([, x]) => x === t).map(([id]) => id);
     const table = (label, t) => h('div', h('h4', label), h('table.scoreboard', h('tr', h('th', 'Player'), h('th', 'K'), h('th', 'D'), h('th', 'A'), h('th', 'Money')), ...ids(t).map(row)));
@@ -153,7 +152,7 @@ export class ActivityManager {
     const names = (t) => [...teamOf.entries()].filter(([, x]) => x === t).map(([id]) => {
       const nm = id === g.net.id ? `${g.settings.get('player.name')} (you)` : g.mp.remotes.get(id)?.avatar.name || id;
       const kd = L.kd?.find((k) => k[0] === id);
-      return h('div', `${L.ready.includes(id) ? '✅' : '⬜'} ${nm}${kd ? ` — ${kd[1]}/${kd[2]}` : ''}${id === L.host ? ' ★' : ''}`);
+      return h('div', `${L.ready.includes(id) ? '✅' : '⬜'} ${nm}${kd ? ` — ${kd[1]}/${kd[2]}/${kd[3] ?? 0}` : ''}${id === L.host ? ' ★' : ''}`);
     });
     const my = teamOf.get(g.net.id);
     const cash = L.cash ? new Map(L.cash).get(g.net.id) : null;

@@ -14,9 +14,9 @@ class CombatActivity {
     this.room = room; this.size = size;
     this.teams = new Map(); this.ready = new Set();
     this.phase = 'lobby'; this.t = 0; this.round = 0; this.score = [0, 0];
-    this.cash = new Map(); this.alive = new Set(); this.kills = new Map(); this.deaths = new Map();
+    this.cash = new Map(); this.alive = new Set(); this.kills = new Map(); this.deaths = new Map(); this.assists = new Map();
   }
-  info() { return { mode: 'combat', size: this.size, phase: this.phase, teams: [...this.teams.entries()], ready: [...this.ready], host: this.room.hostId, round: this.round, score: this.score, t: Math.ceil(this.t), cash: [...this.cash.entries()], kd: [...this.teams.keys()].map((id) => [id, this.kills.get(id) || 0, this.deaths.get(id) || 0]) }; }
+  info() { return { mode: 'combat', size: this.size, phase: this.phase, teams: [...this.teams.entries()], ready: [...this.ready], host: this.room.hostId, round: this.round, score: this.score, t: Math.ceil(this.t), cash: [...this.cash.entries()], kd: [...this.teams.keys()].map((id) => [id, this.kills.get(id) || 0, this.deaths.get(id) || 0, this.assists.get(id) || 0]) }; }
   broadcast() { this.room.broadcast({ t: 'actLobby', lobby: this.info() }); }
   fullState() { return { lobby: this.info() }; }
   onJoin(c) {
@@ -45,7 +45,7 @@ class CombatActivity {
       const t = [...this.teams.values()];
       if (!t.includes(0) || !t.includes(1)) return { ok: false, error: 'Both teams need at least one player' };
       this.score = [0, 0]; this.round = 0; this.swapped = false;
-      for (const id of this.teams.keys()) { this.cash.set(id, START_MONEY); this.kills.set(id, 0); this.deaths.set(id, 0); const cl = this.room.clients.get(id); if (cl) { cl.loadout = ['knife', 'glock']; cl.actAmmo = { glock: 60 }; } }
+      for (const id of this.teams.keys()) { this.cash.set(id, START_MONEY); this.kills.set(id, 0); this.deaths.set(id, 0); this.assists.set(id, 0); const cl = this.room.clients.get(id); if (cl) { cl.loadout = ['knife', 'glock']; cl.actAmmo = { glock: 60 }; } }
       this.newRound();
       return { ok: true };
     }
@@ -94,6 +94,14 @@ class CombatActivity {
     if (killer && this.teams.get(killer.id) !== this.teams.get(victim.id)) {
       this.kills.set(killer.id, (this.kills.get(killer.id) || 0) + 1);
       this.cash.set(killer.id, Math.min(MAX_MONEY, (this.cash.get(killer.id) || 0) + KILL_BONUS));
+    }
+    // assists: anyone else who damaged the victim in the last 8s, on the killer's team (or any
+    // enemy-of-victim team if there was no killer, e.g. fall/grenade splash), gets credit
+    const ASSIST_WINDOW = 8000, t = Date.now();
+    for (const [id, at] of victim.recentDamagers || []) {
+      if (id === killer?.id || t - at > ASSIST_WINDOW) continue;
+      if (this.teams.get(id) === this.teams.get(victim.id)) continue; // no team-damage assists
+      this.assists.set(id, (this.assists.get(id) || 0) + 1);
     }
     this.checkRound();
     this.broadcast();

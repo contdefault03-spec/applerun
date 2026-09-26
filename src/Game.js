@@ -366,10 +366,16 @@ export class Game {
         const res = await this.net.request('reward', { kind: 'movieTicket' });
         if (res.ok === false) return r(res.error || "Can't buy that right now.", 'bad');
         if (res.profile) this.setProfile(res.profile);
+        if (this.interiors.current) this.interiors.current.ticketBought = true;
         r('Enjoy the show!');
         break;
       }
-      case 'cinemaPlay': this.interiors.toggleCinema(); break;
+      case 'cinemaPlay': {
+        const it = this.interiors.current;
+        if (it && !it.ticketBought) { r('Buy a ticket first ($10).', 'bad'); break; }
+        this.interiors.toggleCinema();
+        break;
+      }
       case 'concertVibe': this.avatar.anim.play('flex'); r('The crowd roars!', 'good'); break;
       case 'arcade': {
         if (this.profile.money < 5) return r('A game costs $5.', 'bad');

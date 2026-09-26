@@ -575,6 +575,7 @@ export class InteriorManager {
     g.audio.door(g.player.pos);
     if (this.clubAudio) { this.clubAudio.stop(it.type === 'concert' ? 0.6 : 0); this.clubAudio = null; }
     this.stopCinema(it);
+    if (it.type === 'cinema') it.ticketBought = false; // a fresh ticket is needed each visit
     it.group.visible = false;
     this.current = null;
     this.applyLights(null);

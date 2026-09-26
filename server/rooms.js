@@ -609,6 +609,12 @@ export class RoomManager {
     if (!room || target.dead || target.godMode) return;
     if (target.armor > 0 && attacker) { const a = Math.min(target.armor, dmg * 0.5); target.armor -= a; dmg -= a; target.profile.armor = Math.round(target.armor); target.dirtyProfile = true; }
     target.hp = Math.max(0, target.hp - dmg);
+    // remember who's damaged this player recently (for kill assists — combat mode only cares,
+    // but tracking it here is cheap and keeps the assist logic out of the hot damage path)
+    if (attacker && attacker !== target) {
+      target.recentDamagers ??= new Map();
+      target.recentDamagers.set(attacker.id, now());
+    }
     room.broadcast({ t: 'hit', to: target.id, from: attacker?.id || null, dmg: Math.round(dmg), hp: Math.round(target.hp), armor: Math.round(target.armor), head, cause, knock: !!extra.knock });
     if (target.hp <= 0) {
       target.dead = true; target.deadAt = now();
@@ -616,6 +622,7 @@ export class RoomManager {
       applyReward(target.profile, 'death'); target.dirtyProfile = true;
       if (attacker) { applyReward(attacker.profile, 'kill'); attacker.dirtyProfile = true; }
       room.activity?.onKill?.(target, attacker);
+      target.recentDamagers = null;
     }
   }
   respawn(c) {
