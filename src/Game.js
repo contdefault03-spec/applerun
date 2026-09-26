@@ -62,7 +62,6 @@ export class Game {
     this.waypoint = null;
     this.player = null;
     this.cam = null;
-    this.menuT = 0;
     window.game = this; // handy for debugging / automated tests
   }
 
@@ -166,7 +165,12 @@ export class Game {
   // ------------------------------------------------------------------ flow
   setMode(m) {
     this.mode = m;
-    this.engine.renderOverride = m === 'showroom' ? () => this.showroom.render() : null;
+    this.engine.renderOverride = m === 'showroom' ? () => this.showroom.render()
+      : (m === 'menu' || m === 'loading') ? () => {} : null;
+    // The city is expensive to keep rendering behind the menu (a big-radius flythrough sees far
+    // more of it at once than normal ground-level play does) — hide the canvas there entirely and
+    // let the CSS menu background (see .screen.alley in style.css) show instead. Cheap and static.
+    this.engine.canvas.style.visibility = (m === 'menu' || m === 'loading') ? 'hidden' : 'visible';
     this.hud?.show(m === 'playing' || m === 'paused');
   }
 
@@ -476,13 +480,8 @@ export class Game {
     if (this.storyIntro?.blockInput) { this.input.endFrame(); return; }
     if (this.mode === 'showroom') { this.showroom.update(dt); this.input.endFrame(); return; }
     if (this.mode === 'menu' || this.mode === 'loading') {
-      this.menuT += dt;
-      const c = this.engine.camera;
-      const a = this.menuT * 0.03;
-      const center = new THREE.Vector3(-150, 0, 0);
-      c.position.set(center.x + Math.cos(a) * 320, 140, center.z + Math.sin(a) * 320);
-      c.lookAt(center.x, 20, center.z);
-      this.world.update(dt, center);
+      // v1.3: the menu no longer renders the live city at all (see setMode) — it was the actual
+      // source of the reported menu-screen lag, not gameplay itself. Nothing to simulate here.
       this.input.endFrame();
       return;
     }

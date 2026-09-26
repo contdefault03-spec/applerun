@@ -457,6 +457,31 @@ deck height were fixed; the rest wasn't attempted); a fully server-authoritative
 stock ledger (uses the existing best-effort fx-relay pattern, same as other cosmetic sync in this
 codebase); player (as opposed to NPC) swimming animation/behavior.
 
+## v1.3 follow-up: menu performance + a first "front door" screen
+The reported lag was in the **menu**, not gameplay: `showIntroLauncher`/`showMainMenu` were driving
+an orbiting flythrough camera over the *entire live city* every frame (`Game.update`'s old
+`mode === 'menu'` branch called `world.update` + rendered the full scene from a high, wide-open
+vantage point that sees far more geometry at once than normal ground-level play ever does — worse
+frustum-culling payoff, same cost as gameplay's per-frame work but a much bigger visible set).
+Fixed by removing that flythrough entirely: `Game.setMode` now hides the WebGL canvas
+(`visibility: hidden`) and no-ops the render call while `mode` is `'menu'`/`'loading'`, and
+`Game.update` skips `world.update` for those modes too — zero 3D simulation or rendering cost while
+a menu is open. Character select still uses the separate, already-lightweight `Showroom` preview,
+untouched.
+In its place: a CSS-only "rainy alley" backdrop (`.screen.alley` in `src/ui/style.css`) — layered
+gradients for a streetlamp glow + ground fog + brick-wall hint, an animated diagonal rain overlay,
+a subtle lamp-flicker keyframe — styled after the mood of a reference photo the owner shared, but
+not built from that image or any photo: it depicted real people (a band's promotional photo), and
+using a real photo of real people as a game asset is off-limits regardless of the v1.3 brand-name
+rule change (see CLAUDE.md). Buttons got a cooler hover treatment (left accent bar, warm glow,
+larger slide-in). Added a **Settings** entry to the first-screen intro launcher (previously only
+reachable from the full menu after "Skip Intro") so a laggy player can drop `graphics.quality` to
+Low immediately — the setting itself already existed (`src/core/Settings.js` /
+`src/ui/UIManager.js`'s `showSettings()`), it just wasn't reachable from the first screen.
+Verified via `tools/views.mjs`'s `menu` view + a scripted check: canvas `visibility` is `hidden` in
+menu mode, all 4 buttons render, and the Settings modal opens with the Low/Medium/High preset
+selector intact. `npm test`: 12/12.
+
 ## Useful tools
 | Command | What it does |
 |---|---|

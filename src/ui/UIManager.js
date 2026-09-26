@@ -71,13 +71,14 @@ export class UIManager {
     const g = this.game;
     g.setMode('menu');
     const item = (label, sub, fn) => h('button.menu-btn', { onclick: () => { this.click(); fn(); }, onmouseenter: () => g.audio.ui('hover') }, label, sub ? h('small', sub) : null);
-    const el = h('div.screen',
+    const el = h('div.screen.alley',
       h('div.menu-left',
         h('div.logo', 'ALFREDO', h('br'), 'APPLERUN'),
         h('div.tagline', 'A crew, a bad night, a long way home.'),
         item('Play Multiplayer', 'Create or join a room, then live the story together', () => g.startStoryFlow(false)),
         item('Play Solo', 'You plus 4 AI crewmates', () => g.startStoryFlow(true)),
         item('Skip Intro', 'Go straight to the full game', () => g.showMenu()),
+        item('Settings', 'Graphics, controls, audio — set Low here if you\'re lagging', () => this.showSettings()),
       ),
     );
     this.setLayer('menu', el);
@@ -90,7 +91,7 @@ export class UIManager {
     const item = (label, sub, fn) => h('button.menu-btn', { onclick: () => { this.click(); fn(); }, onmouseenter: () => g.audio.ui('hover') }, label, sub ? h('small', sub) : null);
     const status = h('div', h('span.status-dot' + (net.connected ? '.on' : '.off')), net.connected ? `Online · ${net.serverUrl}` : 'Game server offline — solo mode available');
     const def = PLAYABLE_BY_ID[this.settings.get('player.character')] || PLAYABLE[0];
-    const el = h('div.screen',
+    const el = h('div.screen.alley',
       h('div.menu-left',
         h('div.logo', 'ALFREDO', h('br'), 'APPLERUN'),
         h('div.tagline', 'Multiplayer open-world sandbox'),
