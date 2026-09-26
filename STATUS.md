@@ -345,6 +345,62 @@ actually attached despite being named in the brief — see Stages 14 and 15 belo
 - **What this pass did *not* re-verify from scratch** (because nothing in this pass touched them, and they were already working before it started): Firestore persistence/room codes, WebRTC proximity voice, Gemini NPC dialogue, football/wrestling gameplay beyond their existing unit tests, and the admin menu — a full manual click-through of every one of these was outside this pass's "minimal usage" budget, and none of the 17 stages touched their code paths.
 - **Honesty note on "do not claim complete without testing":** every stage above states plainly, in its own entry, what was scripted-tested vs. what was inspected-but-not-exercised vs. what was explicitly skipped/blocked — Stage 15 (ads) is the one stage genuinely not implemented at all, because the three image files it depends on were never uploaded.
 
+## v1.2 follow-up round (owner feedback after the 17-stage pass)
+The owner played the v1.2 build and reported a punch list of bugs and further requests. Addressed
+in this round (each already has its own commit message with full detail):
+- **Fixed: gang cars said "no such vehicle."** They were injected only into the client's local
+  `VehicleManager.states`, so the server (which independently addresses every parked car as
+  `'p'+index into layout.vehicleSpawns`) had never heard of them. They're now real entries in that
+  same shared array, lock-checked server-side too (a client can't bypass the "guarded" gate by
+  calling `vehEnter` directly). Also gave the two cars per site distinct liveries (matte black /
+  deep crimson) and a flag decal on half of them, and put the crew's flag graffiti on more nearby
+  buildings (radius 30m→45m, up to 7 buildings, a second tag per building ~60% of the time).
+- **Fixed: police (and other armed NPCs) shooting through walls.** `NPC.js`'s `shoot` state fired
+  on distance alone with no line-of-sight check on the *decision* to shoot — only whether the shot
+  connected was ever checked. A blocked NPC now advances/repositions instead of camping and
+  spraying a wall; the NPC-vs-NPC damage branch (which had no wall check at all) got the same fix.
+- **Fixed: cinema screen was basically invisible.** Its emissive tint was near-black (~0x111111)
+  regardless of intensity, so the "playing" screen barely showed the video at all. Set it to white
+  (so the video's real colours/brightness come through) and raised intensity to a proper bright
+  projected-image look; also boosted and widened the video's positional audio (it read very quiet
+  through its raw gain) and made the room itself genuinely large and tall (9m ceiling, up from a
+  cramped 3.2m one that the screen literally used to poke through) instead of just wider on paper.
+- **Fixed: ski resort corridor was a raw, near-vertical cliff.** The flattened pad only covered the
+  lodge footprint; the chairlift run between the two towers was untouched raw mountainside. Now
+  stamps a graded (not perfectly flat) corridor down the lift line. Alpine rocks (which only ever
+  spawn near the snow line) were recoloured from warm brown/tan to frosted grey-white — they used
+  to look like bare dirt boulders sitting on white snow.
+- **Hardened: wanted-level decay can no longer be instantly faked.** True server-side pursuit
+  simulation (LOS/search state) is still not implemented — this remains a client-computed value
+  the server relays — but a *decrease* is now only accepted if enough real time has passed to
+  match the client's own slowest legitimate decay rate, closing the trivial "send wanted:0" cheat.
+- **New: pedestrians check traffic before crossing**, dog walkers stay within the park instead of
+  wandering out to the street edge, and civilians occasionally spawn with a companion who mirrors
+  their wander target so some pedestrians read as walking together.
+- **New: advertisement billboards** (Stage 15, previously blocked) — see its own entry above for
+  why the supplied images couldn't be used and what was built instead.
+- **New: cinema tickets actually gate playback** (`toggleCinema` now checks a per-visit
+  `ticketBought` flag), and **CS mode now tracks real kill assists** (anyone who damaged the
+  victim in the last 8s on the killer's team, server-tracked via a new `recentDamagers` map) — the
+  scoreboard's "A" column previously always read a hardcoded dash.
+- **New: the detailed (K) map labels every interior type**, including ones added earlier in this
+  pass that had no label at all (clinic/dentist/pharmacy/supermarket/barber/bank/arcade/cinema),
+  plus the concert hall, the combat arena, and any active gang territory.
+- **Explicitly declined, twice:** two separate image uploads described as ad art / a gang flag
+  turned out to be a private Discord conversation (real usernames/avatars, one message containing
+  a genuine real-world violence threat) and a Roblox screenshot with a real national flag and real
+  band trademarks. Neither was used for anything; procedurally-generated fictional content was
+  built in their place both times (the "Talon Crew" gang identity and the 4 ad brands).
+- **Still open from the owner's follow-up list** (not attempted this round — flagging honestly
+  rather than rushing a shallow version): richer park activities beyond dog walkers/joggers;
+  dedicated pier buildings/cafés and pier-specific pedestrian navigation; a real casting animation
+  and/or global slow-motion (see Stage 11's entry for why full slow-motion was ruled out); an
+  actual bomb/defuse round objective for CS mode (kept elimination-based, as decided in Stage 12);
+  further basketball set-plays/player roles beyond Stage 13's cuts/screens/switching; car turn
+  indicators, more car body varieties, and a dealership/customization system; concert crowd
+  reactions and a backstage room; networked dolma-stock state (each client currently tracks its
+  own restock timer locally, so two players could theoretically see the same counter differently).
+
 ## Useful tools
 | Command | What it does |
 |---|---|
