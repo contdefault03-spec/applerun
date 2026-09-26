@@ -46,7 +46,13 @@ export class BasketballSim {
     this.possessionTeam = team;
   }
   player(id) { return this.players.find((p) => p.id === id); }
-  give(p) { const b = this.ball; b.holder = p.id; b.vx = b.vy = b.vz = 0; this.possessionTeam = p.team; this.events.push({ type: 'possession', id: p.id, team: p.team }); }
+  give(p) {
+    const b = this.ball;
+    const takeaway = this.possessionTeam !== p.team && this.possessionTeam !== undefined; // rebound/steal off the other team → fast break
+    b.holder = p.id; b.vx = b.vy = b.vz = 0; this.possessionTeam = p.team;
+    if (takeaway) for (const q of this.players) if (q.team === p.team) q.fastBreak = 2.2;
+    this.events.push({ type: 'possession', id: p.id, team: p.team });
+  }
   holderP() { return this.ball.holder ? this.player(this.ball.holder) : null; }
 
   report(id, x, z, yaw, dt = 0.1) {
@@ -184,14 +190,38 @@ export class BasketballSim {
     }
   }
 
+  /** Dynamic man-to-man assignment (recomputed periodically → reads as "switching" when
+   * offensive players cross paths or set screens), instead of a fixed index-based pairing. */
+  assignDefense() {
+    const byTeam = [this.players.filter((q) => q.team === 0), this.players.filter((q) => q.team === 1)];
+    this._marks = new Map();
+    for (const t of [0, 1]) {
+      const defenders = byTeam[t].slice();
+      const attackers = byTeam[1 - t].slice();
+      for (const d of defenders) {
+        attackers.sort((a, c) => Math.hypot(a.x - d.x, a.z - d.z) - Math.hypot(c.x - d.x, c.z - d.z));
+        const pick = attackers.find((a) => !this._marks.has(a.id)) || attackers[0];
+        if (pick) this._marks.set(pick.id, d.id);
+      }
+    }
+  }
   stepAI(dt) {
     const b = this.ball;
     const h = this.holderP();
+    if (this._matchupT === undefined || (this._matchupT -= dt) <= 0) { this.assignDefense(); this._matchupT = 1.4; }
+    // rebound crash: while a shot is live in the air, everyone near the hoop abandons their
+    // offensive spot / defensive assignment and fights for the ball instead of standing still
+    const shotLive = !h && !this.pendingInbound && this.ball.lastShooter != null && Math.abs(b.vy) > 0.05 && b.y < RIM_Y + 3;
     for (const p of this.players) {
       if (p.human || p.stun > 0) continue;
+      p.fastBreak = Math.max(0, (p.fastBreak || 0) - dt);
       const dir = p.team === 0 ? 1 : -1;
       let tx, tz, speed = 5.5;
-      if (!h) { // loose ball
+      if (shotLive && Math.hypot(RIM_X * (b.shotTeam === 0 ? 1 : -1) - p.x, p.z) < 11) {
+        // crash the boards: cluster toward the likely landing area under/around the rim
+        const rimX = RIM_X * (b.shotTeam === 0 ? 1 : -1);
+        tx = rimX - (b.shotTeam === 0 ? 1 : -1) * (1.5 + Math.random() * 2.5); tz = (Math.random() - 0.5) * 4; speed = 6.3;
+      } else if (!h) { // loose ball
         const nearest = this.players.filter((q) => q.team === p.team).sort((a, c) => Math.hypot(a.x - b.x, a.z - b.z) - Math.hypot(c.x - b.x, c.z - b.z))[0];
         if (nearest === p || Math.hypot(b.x - p.x, b.z - p.z) < 4) { tx = b.x; tz = b.z; speed = 6.5; } else { tx = p.hx * 0.6 + dir * 4; tz = p.hz; }
       } else if (h.team === p.team) {
@@ -199,24 +229,52 @@ export class BasketballSim {
           const rimX = RIM_X * dir;
           const dRim = Math.hypot(rimX - p.x, p.z);
           const def = Math.min(...this.players.filter((q) => q.team !== p.team).map((q) => Math.hypot(q.x - p.x, q.z - p.z)), 9);
-          tx = rimX - dir * 1.2; tz = 0; speed = 4.5;
-          if (p.cool <= 0 && (dRim < 2.2 || (dRim < 7.5 && def > 2.2 && Math.random() < dt * 1.2) || (def < 1.3 && Math.random() < dt * 0.8))) {
+          tx = rimX - dir * 1.2; tz = 0; speed = p.fastBreak > 0 ? 6.8 : 4.5;
+          // smarter shot selection: good look (uncontested or close) shoots now; otherwise look
+          // to pass into a cutter/open teammate before forcing a contested shot
+          const openMate = this.players.find((q) => q !== p && q.team === p.team && q.cutting && Math.hypot(RIM_X * dir - q.x, q.z) < 5 && !this.players.some((r) => r.team !== p.team && Math.hypot(r.x - q.x, r.z - q.z) < 1.8));
+          if (p.cool <= 0 && openMate && def < 3 && Math.random() < dt * 1.6) { this.pass(p.id, openMate.id); p.cool = 0.8; }
+          else if (p.cool <= 0 && (dRim < 2.2 || (dRim < 7.5 && def > 2.2 && Math.random() < dt * 1.2) || (def < 1.3 && Math.random() < dt * 0.8))) {
             p.yaw = Math.atan2(rimX - p.x, -p.z);
             if (def < 1.3 && Math.random() < 0.6) this.pass(p.id); else this.shoot(p.id, 0.55 + Math.random() * 0.45);
             p.cool = 1;
           }
         } else {
-          // spread out to open spots on offence
-          tx = RIM_X * dir - dir * (4 + Math.abs(p.hz)); tz = p.hz * 1.2; speed = 4.5;
+          const spotX = RIM_X * dir - dir * (4 + Math.abs(p.hz)), spotZ = p.hz * 1.2;
+          // off-ball movement: spacing by default, with occasional backdoor cuts to the rim when
+          // this player's own defender has drifted away (an "open" read), and light screen-setting
+          // for the ball handler when their defender is draped on them.
+          p.cutT = (p.cutT ?? Math.random() * 2.5) - dt;
+          const myDef = this._marks.get(p.id) ? this.player(this._marks.get(p.id)) : null;
+          if (!p.cutting && p.cutT <= 0) {
+            p.cutT = 2 + Math.random() * 3.5;
+            if (myDef && Math.hypot(myDef.x - p.x, myDef.z - p.z) > 3.2 && Math.random() < 0.6) { p.cutting = true; p.cutTimer = 1.1; }
+          }
+          if (p.cutting) {
+            tx = RIM_X * dir - dir * 1.4; tz = p.hz * 0.25; speed = 6.4;
+            p.cutTimer -= dt;
+            if (p.cutTimer <= 0 || Math.hypot(p.x - tx, p.z - tz) < 1.1) p.cutting = false;
+          } else {
+            tx = spotX; tz = spotZ; speed = 4.5;
+            if (h !== p) {
+              const ballDef = this._marks.get(h.id) ? this.player(this._marks.get(h.id)) : null;
+              if (ballDef && Math.hypot(ballDef.x - h.x, ballDef.z - h.z) < 2 && Math.hypot(p.x - h.x, p.z - h.z) < 6.5) {
+                tx = ballDef.x * 0.55 + h.x * 0.45; tz = ballDef.z * 0.55 + h.z * 0.45; speed = 4;
+              }
+            }
+          }
         }
       } else {
-        // man-to-man defence: stand between your man and the basket
-        const mates = this.players.filter((q) => q.team === p.team);
-        const opp = this.players.filter((q) => q.team !== p.team);
-        const mark = opp[mates.indexOf(p) % opp.length];
-        const ownRim = -RIM_X * dir;
-        tx = mark.x + (ownRim - mark.x) * 0.25; tz = mark.z * 0.8; speed = 5.8;
-        if (mark === h && Math.hypot(h.x - p.x, h.z - p.z) < 1.5 && Math.random() < dt * 0.8) this.steal(p.id);
+        // man-to-man defence on the dynamically (re)assigned mark; switches naturally as
+        // assignDefense() re-picks the nearest attacker each cycle
+        const mark = this._marks.get(p.id) ? this.player(this._marks.get(p.id)) : null;
+        if (!mark) { tx = p.hx; tz = p.hz; }
+        else {
+          const ownRim = -RIM_X * dir;
+          tx = mark.x + (ownRim - mark.x) * 0.25; tz = mark.z * 0.8;
+          if (mark === h && Math.hypot(h.x - p.x, h.z - p.z) < 1.5 && Math.random() < dt * 0.8) this.steal(p.id);
+        }
+        speed = p.fastBreak > 0 ? 6.6 : 5.8;
       }
       const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
       const sp = d > 0.3 ? Math.min(speed, d * 3) : 0;
