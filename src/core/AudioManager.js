@@ -69,9 +69,10 @@ export class AudioManager {
     try { await this._loadingSamples[id]; return true; }
     catch (e) { console.error(`Audio "${id}" failed to load:`, e); return false; }
   }
-  /** Looping positional sample that starts at a random offset and can be faded out/stopped.
-   * Returns { stop(fade) }. */
-  playLoopFrom(id, pos, { volume = 0.7, ref = 8, max = 60 } = {}) {
+  /** Looping positional sample that starts at a random offset (or a given `startAt`, used to
+   * keep every multiplayer client roughly in sync without a dedicated sync message — see
+   * InteriorManager's concert code) and can be faded out/stopped. Returns { stop(fade) }. */
+  playLoopFrom(id, pos, { volume = 0.7, ref = 8, max = 60, startAt = null } = {}) {
     if (!this.ctx || !this.buffers[id]) return { stop() {} };
     const c = this.ctx;
     const s = c.createBufferSource();
@@ -79,7 +80,7 @@ export class AudioManager {
     const dur = s.buffer.duration;
     const g = c.createGain(); g.gain.value = volume;
     s.connect(g); g.connect(this.out('music', pos, { ref, max }));
-    s.start(0, Math.random() * dur);
+    s.start(0, (startAt != null ? startAt % dur : Math.random() * dur));
     return {
       stop: (fade = 0) => {
         if (fade > 0) { g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0, c.currentTime + fade); setTimeout(() => { try { s.stop(); } catch { /* already stopped */ } }, fade * 1000 + 50); }

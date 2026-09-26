@@ -338,15 +338,23 @@ export class Game {
       case 'light': this.interiors.toggleLights(it); break;
       case 'computer': r(['You check the Applerun news: "Gorilla in tech fleece spotted downtown."', 'You scroll memes for 10 minutes.', 'Stock tip: invest in umbrella hats.'][Math.floor(Math.random() * 3)], 'info'); break;
       case 'dolma': {
+        if (this.heldDolma) return r("You're already holding one — eat it first (E).", 'bad');
         if (this.profile.money < 12) return r('A dolma costs $12.', 'bad');
         if (it?.dolmaMesh && !it.dolmaMesh.visible) return r('Out of dolma right now — wait for a new batch.', 'bad');
         const res = await this.net.request('reward', { kind: 'dolma' });
         if (res.ok === false) return r(res.error || "Can't buy that right now.", 'bad');
         if (res.profile) this.setProfile(res.profile);
-        this.setHealth(Math.min(100, this.player.health + 20));
+        if (it?.dolmaMesh) { it.dolmaMesh.visible = false; it.dolmaRespawnT = 15; this.net.send('fx', { kind: 'dolmaStock', a: { bid: it.bid } }); }
+        // v1.3: hand the player a real, visible dollma.glb instead of just crediting an invisible
+        // inventory count — it replaces whatever weapon model is currently held (restored in
+        // eatDolma()) the same way any other held item works (Avatar.hold()).
+        const model = this.assets.gltf('dolma').scene.clone();
+        model.scale.setScalar(0.36 / 0.98);
+        this.avatar.hold(model, 'food');
+        this.heldDolma = true;
         this.avatar.anim.play('interact');
-        if (it?.dolmaMesh) { it.dolmaMesh.visible = false; it.dolmaRespawnT = 15; }
-        r('You buy and eat a dolma. Delicious. (+20 health)');
+        this.net.send('fx', { kind: 'holdDolma' });
+        r('Dolma in hand — press E to eat it.');
         break;
       }
       case 'grocery': {
@@ -401,7 +409,23 @@ export class Game {
   onFx(kind, r, a) {
     if (kind === 'horn') this.audio.horn(r.avatar.position);
     else if (kind === 'grenadeBoom' && a) { const p = new THREE.Vector3(a.x, a.y, a.z); this.fx?.explosion(p); this.audio.crash?.(p, 0.6); }
+    else if (kind === 'holdDolma') { const model = this.assets.gltf('dolma').scene.clone(); model.scale.setScalar(0.36 / 0.98); r.avatar.hold(model, 'food'); r.heldDolma = true; }
+    else if (kind === 'eatDolma') { this.weapons?.equipRemote?.(r, r.weapon); r.heldDolma = false; r.avatar.anim.play('interact'); }
+    else if (kind === 'dolmaStock' && a) { const it2 = this.interiors.interiors.get(a.bid); if (it2?.dolmaMesh) { it2.dolmaMesh.visible = false; it2.dolmaRespawnT = 15; } }
     else this.handleFx?.(kind, r, a);
+  }
+  /** Buy → hold → eat: the dolma model shown here is a real held item (Avatar.hold), not just an
+   * inventory number — matching the v1.3 "player must visibly hold/eat it" requirement. */
+  eatDolma() {
+    if (!this.heldDolma) return;
+    this.heldDolma = false;
+    this.avatar.hold(null);
+    this.weapons?.reholdCurrent?.();
+    this.avatar.anim.play('interact');
+    this.audio.playSample?.('fish', this.player.pos, { volume: 0.4, ref: 3 }); // reuse an existing short foley sample as a bite/eat cue
+    this.net.send('fx', { kind: 'eatDolma' });
+    this.setHealth(Math.min(100, this.player.health + 20));
+    this.ui.notify('Delicious. (+20 health)', 'good');
   }
   damageSelf(amount, cause = 'world') {
     if (!this.player || this.player.mode === 'dead' || this.adminGod) return;

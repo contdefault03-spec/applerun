@@ -77,6 +77,9 @@ export class WeaponManager {
     this.game.audio.dryFire(this.game.player?.pos);
   }
   equipRemote(r, w) { r.avatar.hold(w && w !== 'fists' ? weaponModel(w) : null); }
+  /** Put the currently-equipped weapon (if any) back in the local player's hand after something
+   * else (v1.3: eating a dolma) borrowed the hand slot via avatar.hold(). */
+  reholdCurrent() { this.game.avatar?.hold(this.current !== 'fists' ? weaponModel(this.current) : null); }
   cycle(dir) {
     // grenades are thrown with a dedicated key (see throwGrenade), never cycled/equipped as the held weapon
     const list = this.owned.filter((w) => WEAPONS[w].type !== 'grenade').sort((a, b) => WEAPONS[a].slot - WEAPONS[b].slot);

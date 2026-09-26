@@ -484,7 +484,16 @@ export class InteriorManager {
     if (it.type === 'concert') {
       this.discoT = 0;
       g.audio.ensureSample('concert', g.assets.url('concert')).then((ok) => {
-        if (ok && this.current === it) this.clubAudio = g.audio.playLoopFrom('concert', { x: o.x, y: 2, z: o.z - it.D / 4 }, { volume: 0.8, ref: 6, max: 30 });
+        if (!ok || this.current !== it) return;
+        // v1.3: music4.mp3 was barely audible before — the source sat near the entrance in a
+        // 30x24m hall (most of the crowd was well past its `ref` distance), and 0.8 gain on top
+        // of the default music-bus/master volumes (0.4 x 0.8) came out very quiet. Centered
+        // position, a much more generous ref/max so the whole floor stays loud, and a higher
+        // base gain to actually compensate for the bus multipliers.
+        const dur = g.audio.buffers.concert?.duration || 1;
+        const startAt = (Date.now() / 1000) % dur; // wall-clock offset: every client lands on
+        // roughly the same point in the track without needing a dedicated sync message
+        this.clubAudio = g.audio.playLoopFrom('concert', { x: o.x, y: 2.5, z: o.z - it.D * 0.15 }, { volume: 1.8, ref: 18, max: 70, startAt });
       });
     }
     this.fadeTo(0);

@@ -98,8 +98,11 @@ export function getHeightfield() {
       }
     }
   }
-  // Landmark pads (flat, at sea level)
-  for (const key of ['stadium', 'arena', 'dome', 'parkingStadium', 'parkingArena', 'containerYard', 'plazaPark', 'fountainPlaza', 'basketballCourtPark']) {
+  // Landmark pads (flat, at sea level) — 'pier' added in v1.3 so the ground right where Pier
+  // Street meets the pier is level with the deck (see the deck's own y1 in addLandmarkColliders,
+  // now 0.2 to match a normal kerb/sidewalk height instead of the old 0.9m step cars couldn't
+  // climb), so the pier connects to the road instead of presenting a curb.
+  for (const key of ['stadium', 'arena', 'dome', 'parkingStadium', 'parkingArena', 'containerYard', 'plazaPark', 'fountainPlaza', 'basketballCourtPark', 'pier']) {
     const b = L.landmarks[key];
     for (let z = b.z - b.hz - 4; z <= b.z + b.hz + 4; z += CELL) for (let x = b.x - b.hx - 4; x <= b.x + b.hx + 4; x += CELL) stamp(x, z, 0, 1);
   }

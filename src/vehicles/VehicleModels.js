@@ -59,8 +59,48 @@ export const lightMats = {
   blue: new THREE.MeshStandardMaterial({ color: '#0d47a1', emissive: '#2979ff', emissiveIntensity: 0.2 }),
 };
 
+/** Seat position in the vehicle's local space (same formula Vehicle.js uses for the player's own
+ * seatWorld/seatLocal) — shared here so Traffic.js's ambient driver figures sit exactly where a
+ * real driver/passenger would. */
+export function seatLocal(s, i = 0) {
+  if (s.bike) return new THREE.Vector3(0, s.wheelR + 0.55, i === 0 ? -0.15 : -0.6);
+  const side = i % 2 === 0 ? 1 : -1;
+  const row = i < 2 ? 0 : -1;
+  const y = s.box ? 1.0 : s.truck ? 1.35 : s.low ? 0.32 : s.tall ? 0.72 : 0.5;
+  return new THREE.Vector3(side * s.width * 0.22, y, row * 0.95 + (s.box ? s.length / 2 - 1.6 : s.truck ? s.length / 2 - 1.1 : 0));
+}
+
+const SKIN_TONES = ['#f2c9a1', '#d9a878', '#b17d51', '#8a5a35', '#5c3a22'];
+const SHIRT_TONES = ['#37474f', '#8d6e63', '#455a64', '#5d4037', '#33691e', '#4527a0', '#ad1457'];
+/** A low-poly seated driver/rider figure — deliberately not a full skinned NPC Avatar (this is
+ * for every ambient traffic vehicle, so it has to be cheap: a handful of static boxes/spheres per
+ * car, no bones, no per-frame animation). Fixes "cars appear to drive themselves." */
+function buildDriverFigure(s, seatIndex = 0) {
+  const skin = SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)];
+  const shirt = SHIRT_TONES[Math.floor(Math.random() * SHIRT_TONES.length)];
+  const g = new THREE.Group();
+  const seat = seatLocal(s, seatIndex);
+  const sit = s.bike ? 0.42 : 0.5; // seated hip height above the seat point
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.24), new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.85 }));
+  torso.position.set(0, sit + 0.21, s.bike ? 0.1 : -0.05);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), new THREE.MeshStandardMaterial({ color: skin, roughness: 0.8 }));
+  head.position.set(0, sit + 0.5, torso.position.z + (s.bike ? 0.05 : 0.02));
+  g.add(torso, head);
+  // arms reaching forward to the wheel/handlebar
+  const armGeo = new THREE.BoxGeometry(0.07, 0.07, 0.32);
+  for (const side of [-1, 1]) {
+    const arm = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({ color: skin, roughness: 0.85 }));
+    arm.position.set(side * 0.16, sit + 0.28, torso.position.z + 0.22);
+    arm.rotation.x = -0.35;
+    g.add(arm);
+  }
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+  g.position.copy(seat);
+  return g;
+}
+
 /** Build a vehicle model. Returns { group, wheels: [{obj, front, x, z}], lightbar: [meshes], seatLocal: [...] } */
-export function buildVehicle(type, color, accent = null) {
+export function buildVehicle(type, color, accent = null, withDriver = false) {
   const s = SPECS[type] || SPECS.sedan;
   const key = type + color + (accent || '');
   let parts = cache.get(key);
@@ -86,6 +126,7 @@ export function buildVehicle(type, color, accent = null) {
     spin.add(t, r); pivot.add(spin); group.add(pivot);
     wheels.push({ pivot, spin, front, x, z });
   }
+  if (withDriver && !s.boat) group.add(buildDriverFigure(s, 0));
   setLayer(group, LAYER.MID); // no shadows in the far cascade
   return { group, wheels, lights, spec: s };
 }

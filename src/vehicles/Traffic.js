@@ -58,7 +58,7 @@ export class Traffic {
     const s = SPECS[type];
     const color = s.colors[Math.floor(Math.random() * s.colors.length)];
     const accent = (type === 'sports' || type === 'sedan' || type === 'hypercar') && Math.random() < 0.3 ? ['#ffffff', '#111111', '#f5c400'][Math.floor(Math.random() * 3)] : null;
-    return buildVehicle(type, color, accent);
+    return buildVehicle(type, color, accent, true); // v1.3: every ambient traffic vehicle gets a visible driver
   }
   release(car) {
     this.game.engine.scene.remove(car.m.group);

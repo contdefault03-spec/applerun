@@ -723,11 +723,13 @@ function addLandmarkColliders(L, colliders) {
   for (const sx of [-1, 1]) box('arena', ar.x + sx * (ar.hx - at / 2), ar.z, at / 2, ar.hz - at, 0, -1, ah);
   const dm = L.dome;
   box('dome', dm.x, dm.z, dm.hx, dm.hz, 0, -1, 20, { enterable: 'dome' });
-  // Pier deck: walkable support
+  // Pier deck: walkable (and drivable) support. v1.3: lowered from 0.9 to 0.2 — a real kerb
+  // height, not a step a car can't climb — and the land at the pier's footprint is now flattened
+  // to sea level (0) in terrain.js, so a vehicle can drive straight off Pier Street onto the deck.
   const p = L.pier;
-  box('support', p.x, p.z, p.hx, p.hz, 0, -3, 0.9, { walk: true });
+  box('support', p.x, p.z, p.hx, p.hz, 0, -3, 0.2, { walk: true });
   const pe = L.pierEnd;
-  box('support', pe.x, pe.z, pe.hx, pe.hz, 0, -3, 0.9, { walk: true });
+  box('support', pe.x, pe.z, pe.hx, pe.hz, 0, -3, 0.2, { walk: true });
   // Marina walkways
   box('support', wx(160), wz(614), 64 * S, 3, 0, -3, 0.6, { walk: true });
   box('support', wx(92), wz(716), 3, 102 * S, 0, -3, 0.6, { walk: true });
@@ -1042,8 +1044,10 @@ function buildVehicleSpawns(rand, roads, buildings, L, special, roadIndex, overl
   near('hospital', 'ambulance', 2);
   near('taxi_depot', 'taxi', 4);
   near('garage', 'sports', 2);
-  // Fishing-mission boat, moored at the very end of the pier (Stage 9)
-  { const e = L.pierEnd; spawns.push({ x: e.x - e.hx + 4, z: e.z, rot: Math.PI / 2, type: 'boat', fixed: 'fishingBoat' }); }
+  // Fishing-mission boat: v1.3 fix — this used to sit at `e.x - e.hx + 4`, i.e. *inside* the
+  // pierEnd platform's own footprint (underneath the pier deck). Moved out past the tip of the
+  // pier into open water, bow pointing out to sea.
+  { const e = L.pierEnd; spawns.push({ x: e.x - e.hx - 18, z: e.z, rot: -Math.PI / 2, type: 'boat', fixed: 'fishingBoat' }); }
   spawns.forEach((s, i) => (s.id = i));
   return spawns;
 }

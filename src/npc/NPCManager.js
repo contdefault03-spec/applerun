@@ -196,10 +196,14 @@ export class NPCManager {
       const d = this.game.interiors?.nearestDoor(p.x, p.z, 25);
       if (d) { npc.state = 'goto'; npc.after = 'wander'; npc.onArrive = () => { npc.gone = true; }; return (npc.target = new THREE.Vector3(d.x, 0, d.z)); }
     }
-    // or take a seat on a bench
-    if (Math.random() < 0.1) {
-      for (const b of this.layout.props.benches) if (Math.hypot(b.x - p.x, b.z - p.z) < 25) { npc.state = 'goto'; npc.after = 'sit'; const bx = b.x, bz = b.z; npc.onArrive = () => { npc.heading = b.rot; npc.position.set(bx, 0.16, bz); npc.state = 'sit'; npc.timer = 15 + Math.random() * 30; }; return (npc.target = new THREE.Vector3(bx, 0, bz)); }
+    // or take a seat on a bench — the park itself gets a much higher chance so it reads as a
+    // place people actually go to sit and chill, not just pass through (v1.3 "richer park life")
+    const nearPark = this.layout.landmarks.plazaPark && Math.hypot(p.x - this.layout.landmarks.plazaPark.x, p.z - this.layout.landmarks.plazaPark.z) < Math.max(this.layout.landmarks.plazaPark.hx, this.layout.landmarks.plazaPark.hz) + 20;
+    if (Math.random() < (nearPark ? 0.4 : 0.1)) {
+      for (const b of this.layout.props.benches) if (Math.hypot(b.x - p.x, b.z - p.z) < (nearPark ? 40 : 25)) { npc.state = 'goto'; npc.after = 'sit'; const bx = b.x, bz = b.z; npc.onArrive = () => { npc.heading = b.rot; npc.position.set(bx, 0.16, bz); npc.state = 'sit'; npc.timer = (nearPark ? 25 : 15) + Math.random() * 30; }; return (npc.target = new THREE.Vector3(bx, 0, bz)); }
     }
+    // small chance to just stand and chat in place for a while — ambient "people standing around"
+    if (nearPark && Math.random() < 0.12) { npc.state = 'idle'; npc.timer = 8 + Math.random() * 14; return null; }
     const n = this.layout.roadIndex.nearest(p.x, p.z, 30);
     if (n && n.road.type !== 'highway') {
       const road = n.road;

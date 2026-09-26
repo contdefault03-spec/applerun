@@ -40,5 +40,17 @@ export class Assets {
     if (!g) throw new Error(`Asset "${id}" is not loaded`);
     return g;
   }
+  /** Load a preload:false gltf on demand (large v1.3 story-intro/beach models — never fetched
+   * unless actually needed). Safe to call repeatedly; only fetches once. */
+  async ensureGltf(id) {
+    if (this.gltfs[id]) return this.gltfs[id];
+    this._loadingGltfs ??= {};
+    if (!this._loadingGltfs[id]) {
+      const e = MANIFEST.find((m) => m.id === id);
+      if (!e) throw new Error(`Asset "${id}" is not in the manifest`);
+      this._loadingGltfs[id] = this.loader.loadAsync(e.url).then((g) => { this.gltfs[id] = g; return g; });
+    }
+    return this._loadingGltfs[id];
+  }
   url(id) { return this.urls[id]; }
 }

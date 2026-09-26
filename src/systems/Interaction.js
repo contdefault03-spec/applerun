@@ -36,6 +36,9 @@ export class Interaction {
 
   playerInteractions(out) {
     const g = this.game;
+    // v1.3: a dolma bought at a diner is held visibly in hand (not an invisible inventory tick) —
+    // pressing E anywhere eats it, matching "press E to eat" rather than only at the counter.
+    if (g.heldDolma) out.push({ label: 'Eat dolma', key: 'interact', priority: 7, action: () => g.eatDolma() });
     if (g.vehicles?.current) return;
     for (const d of g.mp.remotes.values()) {
       if (d.hp <= 0 && d.avatar.group.visible && d.avatar.position.distanceTo(g.player.pos) < 2.8) out.push({ label: `Revive ${d.avatar.name}`, key: 'interact', priority: 8, action: () => { g.avatar.anim.play('interact'); g.net.send('revive', { target: d.id }); } });
