@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Avatar } from '../characters/Avatar.js';
 import { personaFor, FALLBACK } from './personas.js';
+import { WATER_LEVEL } from '../../shared/map/layout.js';
 
 // A single AI character with a small state machine. Behaviour parameters come from the
 // role profile so civilians, shopkeepers, police, gang members... act differently.
@@ -212,6 +213,13 @@ export class NPC {
         else this.stuck = 0;
       } else this.speed = 0;
     } else this.speed = Math.max(0, this.speed - dt * 8);
+    // v1.3: beach girls float and swim instead of walking on the sea floor once they've waded
+    // out — the ground-snap above would otherwise sink them to the (dry) collision floor height.
+    if (this.beachGirl && this.swimming) {
+      pos.y = WATER_LEVEL + 0.05; // just at the water surface
+      this.swimTimer -= dt;
+      if (this.swimTimer <= 0) { this.swimming = false; this.target = null; this.timer = 0; }
+    }
     if (face !== null && face !== undefined) { let d = face - this.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); this.heading += d * Math.min(1, dt * 5); }
     a.yaw = this.heading;
     this.collider.x = pos.x; this.collider.z = pos.z; this.collider.y0 = pos.y; this.collider.y1 = pos.y + this.height;
@@ -221,7 +229,7 @@ export class NPC {
     const every = dist < 40 ? 1 : dist < 90 ? 2 : 4;
     if (this.lodSkip % every === 0) {
       const aim = this.state === 'shoot';
-      const loop = this.state === 'dead' ? 'dead' : this.state === 'knocked' ? 'knockedDown' : this.state === 'sit' ? 'sit' : this.state === 'lie' ? 'lie' : this.state === 'cower' ? null : this.handsUp ? 'handsUp' : null;
+      const loop = this.state === 'dead' ? 'dead' : this.state === 'knocked' ? 'knockedDown' : this.beachGirl && this.swimming ? 'swim' : this.state === 'sit' ? 'sit' : this.state === 'lie' ? 'lie' : this.state === 'cower' ? null : this.handsUp ? 'handsUp' : null;
       if (a.anim.loop !== loop && !(this.state === 'knocked')) a.anim.setLoop(loop);
       a.update(dt * every, { speed: this.speed, crouch: this.state === 'cower', aim, aimPitch: 0, weapon: aim ? (this.weapon === 'ak47' ? 'rifle' : 'pistol') : 'none' });
     }

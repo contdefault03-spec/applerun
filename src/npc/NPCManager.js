@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { NPC } from './NPC.js';
-import { districtAt, toPx } from '../../shared/map/layout.js';
+import { districtAt, toPx, isWaterPx, WATER_LEVEL } from '../../shared/map/layout.js';
 import { URBAN } from '../world/Collision.js';
 import { mulberry32 } from '../../shared/rng.js';
 import { circleVsObb } from '../../shared/map/geom.js';
@@ -51,6 +51,8 @@ export class NPCManager {
     this.spawnT = 0;
     this.bubbles = [];
     this.active = new Set();
+    this.girlGltf = null;
+    game.assets.ensureGltf('girl').then((g) => { this.girlGltf = g.scene; }).catch(() => {}); // beach NPCs (v1.3), best-effort
   }
   /** Pre-build NPC appearance variants during loading to avoid hitches later. */
   async prebuild(progress) {
@@ -120,6 +122,17 @@ export class NPCManager {
           else if (roll < 0.4) npc.jogger = true;
         }
       }
+      // Beach life (v1.3): swap in the supplied girl.glb for some civilians spawned in the beach
+      // district — same "hide the normal rig, attach a static prop instead" trick as the dog —
+      // and let them wander into the water and swim (see NPC.js's per-frame water check).
+      if (dist === 'beachfront' && role === 'civilian' && this.girlGltf && Math.random() < 0.55) {
+        npc.avatar.char.root.visible = false;
+        const mesh = this.girlGltf.clone();
+        mesh.scale.setScalar(1.7); // supplied model is normalized to 1 unit tall
+        mesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        npc.avatar.group.add(mesh);
+        npc.beachGirl = true;
+      }
       // Pedestrian groups: occasionally a second civilian spawns right alongside as a loose
       // companion, sharing whatever wander target the leader picks (with a small side offset) so
       // they read as walking together instead of every pedestrian being a lone individual.
@@ -179,6 +192,19 @@ export class NPCManager {
   pickWanderTarget(npc) {
     const p = npc.position;
     if (npc.interior) return null;
+    // Beach girls (v1.3): mostly amble along the shore, occasionally wade out and swim for a bit
+    // (real water-level floating + the existing 'swim' pose, previously unused by anything),
+    // then head back toward dry sand — "enter, swim, turn around, return" from the brief.
+    if (npc.beachGirl && !npc.swimming) {
+      if (Math.random() < 0.18) {
+        const a = Math.random() * Math.PI * 2;
+        npc.swimming = true; npc.swimTimer = 6 + Math.random() * 10;
+        return new THREE.Vector3(p.x + Math.cos(a) * (8 + Math.random() * 10), 0, p.z + Math.sin(a) * (8 + Math.random() * 10));
+      }
+      if (Math.random() < 0.35) { npc.state = 'idle'; npc.timer = 3 + Math.random() * 8; return null; }
+      const a = Math.random() * Math.PI * 2;
+      return new THREE.Vector3(p.x + Math.cos(a) * 8, 0, p.z + Math.sin(a) * 8);
+    }
     // Dog walkers amble around inside the park itself (a loose loop around the park's centre)
     // instead of the generic road-following wander, which would otherwise pull them out onto the
     // street edge like an ordinary pedestrian — and they pause more often, like a dog sniffing
