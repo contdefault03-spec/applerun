@@ -392,6 +392,7 @@ export class Game {
   remember(npc, fact) { this.dialogue?.remember(npc, fact); }
   onFx(kind, r, a) {
     if (kind === 'horn') this.audio.horn(r.avatar.position);
+    else if (kind === 'grenadeBoom' && a) { const p = new THREE.Vector3(a.x, a.y, a.z); this.fx?.explosion(p); this.audio.crash?.(p, 0.6); }
     else this.handleFx?.(kind, r, a);
   }
   damageSelf(amount, cause = 'world') {

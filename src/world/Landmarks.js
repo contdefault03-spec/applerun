@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { getLayout, WATER_LEVEL, wx, wz } from '../../shared/map/layout.js';
 import { heightAt } from '../../shared/map/terrain.js';
 import { pitchTexture, courtTexture, signTexture, parkingTexture } from './textures.js';
+import { buildCombatArena } from './CombatArena.js';
 
 const M = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o });
 function box(w, h, d, mat, x, y, z, ry = 0, shadow = true) {
@@ -358,6 +359,9 @@ export function buildLandmarks() {
       g.add(um);
     }
   }
+
+  // ---------------- Combat arena (CS-style mode, Stage 12) — real geometry, not a bounding box
+  g.add(buildCombatArena());
   return g;
 }
 

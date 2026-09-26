@@ -20,6 +20,7 @@ export class WeaponManager {
     this.viewModel = null;
     this.vmKick = 0;
     this.holstered = false;
+    this.grenades = []; // in-flight thrown grenades (client-simulated arc; server validates the explosion)
     const net = game.net;
     net.on('shot', (m) => this.onRemoteShot(m));
     net.on('hit', (m) => this.onHit(m));
@@ -66,7 +67,7 @@ export class WeaponManager {
   displayModels() { return ['ak47', 'm4a1', 'deagle', 'glock', 'pistol', 'bolt', 'semisniper', 'knife', 'ak47', 'm4a1'].map((w) => weaponModel(w)).filter(Boolean); }
 
   equip(w) {
-    if (!this.owned.includes(w)) return;
+    if (!this.owned.includes(w) || WEAPONS[w].type === 'grenade') return;
     this.current = w;
     this.reloading = 0;
     const av = this.game.avatar;
@@ -77,7 +78,8 @@ export class WeaponManager {
   }
   equipRemote(r, w) { r.avatar.hold(w && w !== 'fists' ? weaponModel(w) : null); }
   cycle(dir) {
-    const list = this.owned.slice().sort((a, b) => WEAPONS[a].slot - WEAPONS[b].slot);
+    // grenades are thrown with a dedicated key (see throwGrenade), never cycled/equipped as the held weapon
+    const list = this.owned.filter((w) => WEAPONS[w].type !== 'grenade').sort((a, b) => WEAPONS[a].slot - WEAPONS[b].slot);
     const i = list.indexOf(this.current);
     this.equip(list[(i + dir + list.length) % list.length]);
   }
@@ -120,10 +122,12 @@ export class WeaponManager {
     if (inputOk) {
       for (const s of SLOT_ORDER) if (input.hit('slot' + s)) this.selectSlot(s);
       if (input.hit('slot5')) this.useMedkit();
+      if (input.hit('grenade')) this.throwGrenade();
       if (input.mouse.wheel) this.cycle(input.mouse.wheel > 0 ? 1 : -1);
       if (input.hit('reload')) this.reload();
       if (input.hit('drop') && this.current !== 'fists') { this.equip('fists'); g.ui.notify('Weapon holstered', 'info'); }
     }
+    this.updateGrenades(dt);
     // reloading
     if (this.reloading > 0) {
       this.reloading -= dt;
@@ -150,6 +154,56 @@ export class WeaponManager {
       if (d.type === 'melee') this.melee();
       else this.fire();
     }
+  }
+
+  // ------------------------------------------------------------------ grenades
+  // Client-simulated arc + bounce (same trust model as traffic/NPCs: cosmetic simulation is
+  // local-only). The server only ever sees the final explosion point and does its own
+  // distance/pvp checks before applying damage — see server/rooms.js onGrenade().
+  throwGrenade() {
+    const g = this.game;
+    const w = WEAPONS.grenade;
+    if (!this.owned.includes('grenade')) return g.ui.notify('No grenades — buy one first.', 'bad');
+    if ((this.total('grenade') || 0) <= 0) return g.ui.notify('Out of grenades.', 'bad');
+    this.spend('grenade');
+    const cam = g.engine.camera;
+    const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
+    const pos = g.player.pos.clone(); pos.y += 1.4;
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshStandardMaterial({ color: '#3a4a34', roughness: 0.6 }));
+    mesh.position.copy(pos);
+    g.world.outdoor.add(mesh);
+    const vel = dir.clone().multiplyScalar(w.throwSpeed).add(new THREE.Vector3(0, 3.2, 0));
+    this.grenades.push({ mesh, pos, vel, fuse: w.fuse, bounces: 0 });
+    g.avatar.anim.play('interact');
+    g.net.send('fx', { kind: 'anim', a: { name: 'interact' } });
+  }
+  updateGrenades(dt) {
+    const g = this.game;
+    for (const gr of this.grenades) {
+      if (gr.done) continue;
+      gr.vel.y -= 18 * dt;
+      gr.pos.addScaledVector(gr.vel, dt);
+      const h = g.world.collision.groundAt ? g.world.collision.groundAt(gr.pos.x, gr.pos.z) : 0;
+      if (gr.pos.y <= h + 0.09) {
+        gr.pos.y = h + 0.09;
+        if (gr.bounces < 3 && gr.vel.length() > 1) { gr.vel.y *= -0.4; gr.vel.x *= 0.6; gr.vel.z *= 0.6; gr.bounces++; }
+        else gr.vel.set(0, 0, 0);
+      }
+      gr.mesh.position.copy(gr.pos);
+      gr.fuse -= dt;
+      if (gr.fuse <= 0) this.explodeGrenade(gr);
+    }
+    this.grenades = this.grenades.filter((gr) => !gr.done);
+  }
+  explodeGrenade(gr) {
+    const g = this.game;
+    gr.done = true;
+    gr.mesh.parent?.remove(gr.mesh);
+    g.fx?.explosion(gr.pos);
+    g.audio.crash?.(gr.pos, 0.6);
+    g.cam.addShake(Math.max(0, 1 - g.player.pos.distanceTo(gr.pos) / 30));
+    if (g.net.connected && g.net.room) g.net.send('grenade', { x: +gr.pos.x.toFixed(2), y: +gr.pos.y.toFixed(2), z: +gr.pos.z.toFixed(2) });
+    if (!g.inActivity) { g.npcs?.explosion?.(gr.pos, 8); g.police?.reportCrime?.('explosion', 2, gr.pos); }
   }
 
   reload() {
@@ -406,13 +460,13 @@ export class WeaponManager {
       grid.replaceChildren(...Object.values(SHOP_ITEMS).map((it) => {
         const owned = it.kind === 'weapon' && g.profile.weapons.includes(it.id);
         const w = it.kind === 'weapon' ? WEAPONS[it.id] : it.kind === 'ammo' ? WEAPONS[it.weapon] : null;
-        const stat = w && it.kind === 'weapon' ? (w.type === 'melee' ? `Damage ${w.damage}` : `Dmg ${w.damage} · ${w.rpm} RPM · Mag ${w.mag}`) : it.kind === 'ammo' ? `Have ${g.profile.ammo[it.weapon] || 0}` : it.kind === 'armor' ? `Armor ${g.profile.armor || 0}/100` : `Have ${g.profile.medkits || 0}`;
+        const stat = w && it.kind === 'weapon' ? (w.type === 'melee' ? `Damage ${w.damage}` : w.type === 'grenade' ? `Damage ${w.damage} · radius ${w.radius}m` : `Dmg ${w.damage} · ${w.rpm} RPM · Mag ${w.mag}`) : it.kind === 'ammo' ? `Have ${g.profile.ammo[it.weapon] || 0}` : it.kind === 'armor' ? `Armor ${g.profile.armor || 0}/100` : `Have ${g.profile.medkits || 0}`;
         return h('div.shop-item', h('b', it.name), h('div.muted', { style: { fontSize: '12px' } }, stat), h('div.price', `$${it.price.toLocaleString()}`),
           h('button.btn.small' + (owned ? '' : '.primary'), {
             disabled: owned || (it.kind === 'ammo' && !g.profile.weapons.includes(it.weapon)),
             onclick: async () => {
               const r = await g.net.request('buy', { item: it.id });
-              if (r.ok) { g.setProfile(r.profile); g.audio.cash(); g.ui.notify(`Bought ${it.name}`, 'good'); if (it.kind === 'weapon') this.equip(it.id); if (it.kind === 'armor') g.player.armor = 100; }
+              if (r.ok) { g.setProfile(r.profile); g.audio.cash(); g.ui.notify(`Bought ${it.name}`, 'good'); if (it.kind === 'weapon' && WEAPONS[it.id].type !== 'grenade') this.equip(it.id); if (it.kind === 'armor') g.player.armor = 100; }
               else g.ui.notify(r.error || 'Purchase failed', 'bad');
               render();
             },

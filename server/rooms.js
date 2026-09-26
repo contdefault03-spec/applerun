@@ -323,6 +323,7 @@ export class RoomManager {
       }
       case 'shoot': return this.onShoot(c, m);
       case 'melee': return this.onMelee(c, m);
+      case 'grenade': return this.onGrenade(c, m);
       case 'vehExit': return this.vehExit(c);
       case 'ram': {
         // vehicle vs player: attacker must be driving and close to the victim
@@ -547,6 +548,28 @@ export class RoomManager {
     if (Math.hypot(target.state.x - c.state.x, target.state.z - c.state.z) > 3.2) return;
     const str = { ajan: 1.35, masked: 1.2 }[c.character] || 1;
     this.applyDamage(target, w.damage * str, c, w.id, false, { knock: true });
+  }
+  onGrenade(c, m) {
+    const room = c.room;
+    if (c.dead || !this.ownsWeapon(c, 'grenade')) return;
+    const w = WEAPONS.grenade;
+    const t = now();
+    if (t - (c.lastShot.grenade || 0) < 800) return;
+    const ammoStore = c.room.kind === 'activity' && c.loadout ? (c.actAmmo ||= {}) : c.profile.ammo;
+    if ((ammoStore.grenade | 0) <= 0) return;
+    c.lastShot.grenade = t;
+    ammoStore.grenade--;
+    if (ammoStore === c.profile.ammo) c.dirtyProfile = true;
+    // explosion point must be a plausible throw from the player (arc range, not a teleport)
+    const pos = [num(m.x), num(m.y), num(m.z)];
+    if (Math.hypot(pos[0] - c.state.x, pos[2] - c.state.z) > 22) return;
+    room.near({ t: 'fx', id: c.id, kind: 'grenadeBoom', a: { x: pos[0], y: pos[1], z: pos[2] } }, pos[0], pos[2], 80);
+    for (const target of room.clients.values()) {
+      if (target.dead || target === c || !this.pvpAllowed(c, target)) continue;
+      const dist = Math.hypot(target.state.x - pos[0], target.state.y + 0.9 - pos[1], target.state.z - pos[2]);
+      if (dist > w.radius) continue;
+      this.applyDamage(target, w.damage * (1 - dist / w.radius), c, 'grenade', false, { knock: true });
+    }
   }
   applyDamage(target, dmg, attacker, cause, head, extra = {}) {
     const room = target.room;

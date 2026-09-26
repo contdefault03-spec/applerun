@@ -631,8 +631,43 @@ function slicePoly(pts, f0, f1, closed) {
 }
 
 // ---------------------------------------------------------------- landmark colliders
+// Shared footprint for the CS-style combat arena (Stage 12) — used by both the venue definition
+// (buildVenues, for round logic/OOB checks) and the collider walls below, so they always agree.
+export function combatArenaGeom() {
+  const cx = wx(835), cz = wz(730);
+  return { cx, cz, halfX: 95, halfZ: 58, spawnA: [cx - 72, cz], spawnB: [cx + 72, cz] };
+}
+
 function addLandmarkColliders(L, colliders) {
   const box = (kind, x, z, hx, hz, rot, y0, y1, extra = {}) => colliders.push({ kind, x, z, hx, hz, rot, y0, y1, ...extra });
+  // Combat arena: perimeter wall (with entrance gaps at both spawn ends) + mid-lane cover blocks
+  // + two small buildings flanking the lane, so the arena is real walkable/collidable geometry,
+  // not just an invisible bounding box (see CombatArena.js for the matching visual meshes).
+  {
+    const { cx, cz, halfX, halfZ } = combatArenaGeom();
+    const wt = 1.2, wh = 6;
+    // north & south perimeter walls, full length (no gaps needed — entrances are at the ends)
+    box('arenaWall', cx, cz - halfZ, halfX, wt / 2, 0, 0, wh);
+    box('arenaWall', cx, cz + halfZ, halfX, wt / 2, 0, 0, wh);
+    // east & west end walls, split with a gate gap in the middle for spawn access
+    for (const sx of [-1, 1]) {
+      const ex = cx + sx * halfX;
+      const seg = (halfZ * 2 - 10) / 2;
+      box('arenaWall', ex, cz - 5 - seg / 2, wt / 2, seg / 2, 0, 0, wh);
+      box('arenaWall', ex, cz + 5 + seg / 2, wt / 2, seg / 2, 0, 0, wh);
+    }
+    // mid-lane cover: staggered crates/containers down the centre so there's no clean sightline
+    // end-to-end, plus two flanking buildings for alleys/corners.
+    const coverX = [-45, -20, 0, 20, 45];
+    for (let i = 0; i < coverX.length; i++) {
+      const zoff = i % 2 === 0 ? -14 : 14;
+      box('arenaCover', cx + coverX[i], cz + zoff, 3, 3, 0, -1, 2.2);
+    }
+    box('arenaBldg', cx - 30, cz - halfZ + 12, 9, 8, 0, -1, 7);
+    box('arenaBldg', cx + 30, cz + halfZ - 12, 9, 8, 0, -1, 7);
+    box('arenaBldg', cx - 12, cz + halfZ - 10, 7, 6, 0, -1, 6);
+    box('arenaBldg', cx + 12, cz - halfZ + 10, 7, 6, 0, -1, 6);
+  }
   // Stadium: ring of stands (4 sides) with gaps for entrances
   const st = L.stadium;
   const t = 14; // stand thickness
@@ -940,7 +975,10 @@ function buildVenues(L) {
     basketball: { x: ar.x, z: ar.z, halfLength: 14, halfWidth: 7.5, rimHeight: 3.05, axis: 'x' },
     streetball: { x: L.basketballCourtPark.x, z: L.basketballCourtPark.z, halfLength: 14, halfWidth: 7.5, rimHeight: 3.05, axis: 'x' },
     wrestling: { x: dm.x, z: dm.z, half: 3.2, height: 1.2 },
-    combat: { x: wx(835), z: wz(730), halfX: 90, halfZ: 55, spawnA: W([700, 735]), spawnB: W([975, 720]) },
+    // Desert-town/industrial CS-style arena (Stage 12): a real walled compound (not just a
+    // bounding box) — two spawn courtyards at opposite ends connected by a mid lane with cover,
+    // see combatArenaGeom() above (shared with the collider walls) and CombatArena.js (visuals).
+    combat: (() => { const a = combatArenaGeom(); return { x: a.cx, z: a.cz, halfX: a.halfX, halfZ: a.halfZ, spawnA: a.spawnA, spawnB: a.spawnB }; })(),
   };
 }
 

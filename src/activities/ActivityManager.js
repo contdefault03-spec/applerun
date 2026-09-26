@@ -22,6 +22,7 @@ export class ActivityManager {
     net.on('act', (m) => { if (this.s?.kind === 'net') this.onSnap(m.snap, m.ev); });
     net.on('actRound', (m) => this.onRound(m));
     net.on('actEnd', (m) => { const my = this.myTeam(); this.game.hud.bigMessage(m.winner === my ? 'VICTORY' : 'DEFEAT', `Final score ${m.score[0]} - ${m.score[1]}`, 6, m.winner === my ? '#7dff9b' : '#ff4757'); });
+    net.on('actHalftime', () => this.game.hud.bigMessage('HALFTIME', 'Teams have swapped sides.', 4, '#4fc3f7'));
     net.on('actLoadout', (m) => { if (this.s?.mode === 'combat') this.game.weapons.setLoadout({ weapons: m.loadout, ammo: m.ammo }); });
     net.on('actClock', (m) => { if (this.s) this.s.clock = m.t; });
     this.ballMesh = null;
@@ -157,7 +158,7 @@ export class ActivityManager {
     const my = teamOf.get(g.net.id);
     const cash = L.cash ? new Map(L.cash).get(g.net.id) : null;
     const buy = s.mode === 'combat' && (L.phase === 'lobby' || L.phase === 'buy') ? h('div', h('h3', `Buy menu — match money $${cash ?? 0}`),
-      h('div.shop-grid', ...Object.values(WEAPONS).filter((w) => w.price && w.id !== 'knife').map((w) => h('div.shop-item', h('b', w.name), h('div.muted', { style: { fontSize: '12px' } }, `Dmg ${w.damage} · ${w.rpm} rpm`), h('div.price', `$${w.price}`),
+      h('div.shop-grid', ...Object.values(WEAPONS).filter((w) => w.price && w.id !== 'knife').map((w) => h('div.shop-item', h('b', w.name), h('div.muted', { style: { fontSize: '12px' } }, w.rpm ? `Dmg ${w.damage} · ${w.rpm} rpm` : `Dmg ${w.damage} · radius ${w.radius}m`), h('div.price', `$${w.price}`),
         h('button.btn.small.primary', { onclick: async () => { const r = await g.net.request('actBuy', { item: w.id }); if (r.ok) { g.weapons.setLoadout({ weapons: r.loadout, ammo: r.ammo }); g.audio.cash(); } else g.ui.notify(r.error, 'bad'); } }, 'Buy'))))) : null;
     const body = h('div.panel', { style: { position: 'fixed', right: '20px', top: '80px', width: 'min(460px, 92vw)', padding: '16px 18px', zIndex: 15, maxHeight: '80vh', overflow: 'auto' } },
       h('div.row', h('b', { style: { fontFamily: 'var(--display)', fontSize: '30px' } }, `${MODE_NAMES[s.mode]} ${s.size}`), h('div.spacer'), h('span.tag', `CODE ${s.code}`)),

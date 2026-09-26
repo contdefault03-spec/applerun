@@ -11,6 +11,7 @@ export const WEAPONS = {
   m4a1: { id: 'm4a1', name: 'M4A1', short: 'M4A1', slot: 3, type: 'rifle', damage: 29, rpm: 680, mag: 30, reserve: 90, reload: 2.1, spread: 0.028, aimSpread: 0.008, recoil: 0.02, range: 120, falloff: 0.8, auto: true, anim: 'rifle', sound: 'm4a1', price: 3100, ammoPrice: 60 },
   bolt: { id: 'bolt', name: 'AWP-style Bolt Sniper', short: 'BOLT', slot: 4, type: 'sniper', damage: 115, rpm: 42, mag: 5, reserve: 20, reload: 3.4, spread: 0.12, aimSpread: 0.0005, recoil: 0.1, range: 400, falloff: 0.95, auto: false, scope: 18, anim: 'sniper', sound: 'bolt', price: 4750, ammoPrice: 100 },
   semisniper: { id: 'semisniper', name: 'Marksman Semi-Auto', short: 'DMR', slot: 4, type: 'sniper', damage: 70, rpm: 180, mag: 10, reserve: 40, reload: 2.8, spread: 0.08, aimSpread: 0.0015, recoil: 0.05, range: 300, falloff: 0.9, auto: false, scope: 28, anim: 'sniper', sound: 'semisniper', price: 3800, ammoPrice: 80 },
+  grenade: { id: 'grenade', name: 'Frag Grenade', short: 'FRAG', slot: 5, type: 'grenade', damage: 115, radius: 7, mag: 1, reserve: 0, throwSpeed: 15, fuse: 1.5, anim: 'throw', price: 400, ammoPrice: 400 },
 };
 export const HEADSHOT_MULT = { pistol: 2.5, rifle: 3, sniper: 2.2, melee: 1.3 };
 

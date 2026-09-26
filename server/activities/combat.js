@@ -6,7 +6,7 @@ import { getLayout } from '../../shared/map/layout.js';
 import { applyReward } from '../../shared/economy.js';
 
 const START_MONEY = 800, WIN_BONUS = 3250, LOSS_BONUS = 1400, KILL_BONUS = 300, MAX_MONEY = 16000;
-const ROUNDS_TO_WIN = 5, BUY_TIME = 12, ROUND_TIME = 115, END_TIME = 5;
+const ROUNDS_TO_WIN = 5, BUY_TIME = 12, ROUND_TIME = 115, END_TIME = 5, HALFTIME_ROUND = 5;
 const venue = getLayout().venues.combat;
 
 class CombatActivity {
@@ -44,7 +44,7 @@ class CombatActivity {
       if (this.phase !== 'lobby') return { ok: false, error: 'Already running' };
       const t = [...this.teams.values()];
       if (!t.includes(0) || !t.includes(1)) return { ok: false, error: 'Both teams need at least one player' };
-      this.score = [0, 0]; this.round = 0;
+      this.score = [0, 0]; this.round = 0; this.swapped = false;
       for (const id of this.teams.keys()) { this.cash.set(id, START_MONEY); this.kills.set(id, 0); this.deaths.set(id, 0); const cl = this.room.clients.get(id); if (cl) { cl.loadout = ['knife', 'glock']; cl.actAmmo = { glock: 60 }; } }
       this.newRound();
       return { ok: true };
@@ -58,7 +58,7 @@ class CombatActivity {
       if (money < price) return { ok: false, error: 'Not enough match money' };
       this.cash.set(c.id, money - price);
       c.loadout = [...new Set([...c.loadout.filter((x) => WEAPONS[x].slot !== w.slot || x === 'knife'), d.item])];
-      if (w.mag) c.actAmmo[d.item] = w.mag + (w.reserve || w.mag * 3);
+      if (w.mag) c.actAmmo[d.item] = w.mag + (w.reserve ?? w.mag * 3);
       this.broadcast();
       return { ok: true, loadout: c.loadout, ammo: c.actAmmo, cash: this.cash.get(c.id) };
     }
@@ -66,13 +66,18 @@ class CombatActivity {
   }
   newRound() {
     this.round++;
+    if (this.round === HALFTIME_ROUND && !this.swapped) {
+      this.swapped = true;
+      for (const id of this.teams.keys()) { const t = this.teams.get(id); this.teams.set(id, t ? 0 : 1); const cl = this.room.clients.get(id); if (cl) cl.team = t ? 'A' : 'B'; }
+      this.room.broadcast({ t: 'actHalftime', round: this.round });
+    }
     this.phase = 'buy'; this.t = BUY_TIME;
     this.alive = new Set(this.teams.keys());
     for (const id of this.teams.keys()) {
       const c = this.room.clients.get(id);
       if (!c) continue;
       c.dead = false; c.hp = 100; c.armor = 0; c.teleportGrace = Date.now() + 4000;
-      for (const w of c.loadout) { const d = WEAPONS[w]; if (d.mag) c.actAmmo[w] = Math.max(c.actAmmo[w] || 0, d.mag + (d.reserve || d.mag * 3)); }
+      for (const w of c.loadout) { const d = WEAPONS[w]; if (d.mag) c.actAmmo[w] = Math.max(c.actAmmo[w] || 0, d.mag + (d.reserve ?? d.mag * 3)); }
       const s = this.spawnFor(c);
       c.state.x = s.x; c.state.z = s.z;
       c.send({ t: 'respawn', id: c.id, p: [s.x, 0, s.z], hp: 100 });
