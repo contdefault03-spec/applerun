@@ -110,9 +110,13 @@ export function buildProps() {
   boats.userData.bob = true;
   group.add(boats);
 
-  // Rocks
-  const rock = part(new THREE.DodecahedronGeometry(1, 0), '#7a746b');
-  group.add(instanced(rock, vmat, P.rocks.map((r) => ({ ...r, y: y(r.x, r.z) })), (o, r) => { o.position.set(r.x, r.y, r.z); o.rotation.set(r.r, r.r * 2, 0); o.scale.set(r.s, r.s * 0.6, r.s); }));
+  // Rocks — these only ever spawn near the snow line (see shared/map/layout.js, h > 95), so a
+  // cool grey-white "frosted" tone reads far better against snow than the old warm brown/tan,
+  // which looked like a bare dirt boulder dropped on a glacier.
+  const rock = part(new THREE.DodecahedronGeometry(1, 0), '#9aa0a6');
+  const rockMesh = instanced(rock, vmat, P.rocks.map((r) => ({ ...r, y: y(r.x, r.z) })), (o, r) => { o.position.set(r.x, r.y, r.z); o.rotation.set(r.r, r.r * 2, 0); o.scale.set(Math.min(r.s, 3), Math.min(r.s, 3) * 0.6, Math.min(r.s, 3)); });
+  P.rocks.forEach((r, i) => rockMesh.setColorAt(i, new THREE.Color('#9aa0a6').lerp(new THREE.Color('#f2f6fb'), 0.25 + Math.random() * 0.45)));
+  group.add(rockMesh);
 
   // Traffic lights at big intersections: one pole per approach group (0 = the road direction
   // of the node's first edge, 1 = the perpendicular one), so each pair of opposite corners

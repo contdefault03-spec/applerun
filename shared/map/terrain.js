@@ -104,12 +104,30 @@ export function getHeightfield() {
     for (let z = b.z - b.hz - 4; z <= b.z + b.hz + 4; z += CELL) for (let x = b.x - b.hx - 4; x <= b.x + b.hx + 4; x += CELL) stamp(x, z, 0, 1);
   }
   // Ski resort: a level plateau cut into the mountainside at whatever height it naturally sits
-  // at (not sea level, since it's near the peak)
+  // at (not sea level, since it's near the peak), plus a graded (not flat — a real ski run still
+  // slopes) corridor along the chairlift line so the run between the two lift towers isn't an
+  // untouched, near-vertical raw cliff face (the pad alone only covered the lodge itself).
   {
     const b = L.landmarks.resort;
     const [cpx, cpy] = toPx(b.x, b.z);
     const plateau = rawHeightPx(cpx, cpy);
     for (let z = b.z - b.hz - 8; z <= b.z + b.hz + 8; z += CELL) for (let x = b.x - b.hx - 8; x <= b.x + b.hx + 8; x += CELL) stamp(x, z, plateau, 1);
+    const towerA = { x: b.x - 10, z: b.z + 26 }, towerB = { x: b.x - 10, z: b.z - 40 };
+    const [bpx, bpy] = toPx(towerB.x, towerB.z);
+    const rawB = rawHeightPx(bpx, bpy);
+    const steps = 24;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const lx = towerA.x + (towerB.x - towerA.x) * t, lz = towerA.z + (towerB.z - towerA.z) * t;
+      const [lpx, lpy] = toPx(lx, lz);
+      const graded = plateau + (rawB - plateau) * t; // a smooth, steady descent from lodge to towerB
+      const eased = graded * 0.5 + rawHeightPx(lpx, lpy) * 0.5; // blended with real terrain, not perfectly flat
+      for (let dz = -10; dz <= 10; dz += CELL) for (let dx = -10; dx <= 10; dx += CELL) {
+        const d = Math.hypot(dx, dz);
+        if (d > 10) continue;
+        stamp(lx + dx, lz + dz, eased, 0.65 * (1 - d / 10));
+      }
+    }
   }
   for (let k = 0; k < h.length; k++) if (w[k] > 0) h[k] = h[k] + (tgt[k] - h[k]) * w[k];
   // island surroundings (after flattening so the border is continuous)
