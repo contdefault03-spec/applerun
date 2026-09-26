@@ -1,6 +1,15 @@
-# Alfredo Applerun
+# Alfredo Applerun — v1.2
 
 A multiplayer 3D open-world browser game built with Three.js and Vite. It runs on a Node.js WebSocket game server, with WebRTC proximity voice and Gemini-powered NPC conversations. Firestore persistence is optional.
+
+v1.2 adds: a full set of new interiors (clinic, dentist, pharmacy, supermarket, barber, bank,
+arcade, ATMs) plus dolma sold at every diner/restaurant counter; a real cinema (playable video
+screen) and a populated concert hall; a fishing mission with a rod/bobber rig, a jumping tuna and
+a cinematic camera moment; a real Counter-Strike arena (desert-town/industrial geometry, not a
+bounding box) with grenades and halftime team swaps; smarter basketball off-ball AI (cuts,
+screens, defensive switching, fast breaks); denser, more sidewalk-aware pedestrians and traffic;
+park life (dog walkers, joggers); and random neighbourhood gang encounters with claimable cars.
+See `STATUS.md` for the full stage-by-stage breakdown of what changed and what's still open.
 
 The city layout is generated from the supplied map image (`public/assets/maps/reference.jpg`). Every building can be entered.
 
