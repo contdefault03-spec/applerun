@@ -32,6 +32,7 @@ import { Events } from './systems/Events.js';
 import { FishingMission } from './systems/FishingMission.js';
 import { AdminMenu } from './systems/AdminMenu.js';
 import { ATMs } from './systems/ATMs.js';
+import { GangEncounter } from './systems/GangEncounter.js';
 import { ActivityManager } from './activities/ActivityManager.js';
 import { VoiceChat } from './net/VoiceChat.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
@@ -91,6 +92,7 @@ export class Game {
     this.fishing = this.addSystem(new FishingMission(this));
     this.admin = new AdminMenu(this);
     this.atms = this.addSystem(new ATMs(this));
+    this.gangs = this.addSystem(new GangEncounter(this));
     this.dialogue = new Dialogue(this);
     progress(0.9, 'Dressing up the citizens of Applerun…');
     await this.npcs.prebuild();

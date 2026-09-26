@@ -63,6 +63,7 @@ export function applyReward(p, kind, data = {}) {
     case 'grocery': amount = -Math.min(p.money, 8); break;
     case 'arcade': amount = Math.max(-15, Math.min(15, Math.round(data.amount || 0))); break;
     case 'movieTicket': amount = -Math.min(p.money, 10); break;
+    case 'gangClear': amount = 6000; break;
     default: return { ok: false, error: 'bad reward' };
   }
   p.money = Math.max(0, p.money + amount);

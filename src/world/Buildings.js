@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { getLayout } from '../../shared/map/layout.js';
 import { mulberry32 } from '../../shared/rng.js';
-import { facadeTexture, facadeEmissiveRandom, FACADE_STYLES, roofTexture, storefrontTexture, graffitiTexture, signTexture } from './textures.js';
+import { facadeTexture, facadeEmissiveRandom, FACADE_STYLES, roofTexture, storefrontTexture, graffitiTexture, gangFlagTexture, signTexture } from './textures.js';
 
 export const TYPE_STYLE = {
   tower: 'glass', office: 'office', apartment: 'apartment', shop: 'shop', restaurant: 'shop', cafe: 'shop', bar: 'rough', nightclub: 'rough', clothing: 'shop',
@@ -258,15 +258,19 @@ export function buildBuildings() {
       neonMaterials.push(signMat);
     }
   }
-  // Graffiti decals
+  // Graffiti decals (gang-flagged buildings get the fictional Talon Crew tag instead — Stage 14)
   const gGroups = {};
+  let gangMat = null;
   for (const g of L.props.graffiti) {
     const b = L.buildings[g.b];
     const W = frame(b);
     const side = [[0, 1], [1, 0], [0, -1], [-1, 0]][g.v % 4];
     const lx = side[0] * (b.hx + 0.05), lz = side[1] * (b.hz + 0.05);
     const p = W(lx * (side[0] ? 1 : 0.4 + 0), b.base + 1.6, lz);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 2.2), (gGroups[g.v % 6] ??= new THREE.MeshStandardMaterial({ map: graffitiTexture(g.v % 6), transparent: true, alphaTest: 0.1, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 })));
+    const mat = g.gang
+      ? (gangMat ??= new THREE.MeshStandardMaterial({ map: gangFlagTexture(), transparent: true, alphaTest: 0.1, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }))
+      : (gGroups[g.v % 6] ??= new THREE.MeshStandardMaterial({ map: graffitiTexture(g.v % 6), transparent: true, alphaTest: 0.1, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 2.2), mat);
     m.position.set(p[0], p[1], p[2]);
     m.rotation.y = b.rot + Math.atan2(side[0], side[1]);
     signMeshes.push(m);

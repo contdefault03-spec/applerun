@@ -455,13 +455,25 @@ function buildLayout() {
   // ---- vehicle spawns (parked cars)
   const vehicleSpawns = buildVehicleSpawns(rand, roads, buildings, landmarks, special, roadIndex, overlapsExisting);
 
+  // ---- gang encounters (Stage 14): two rough-neighbourhood anchors, each independently a
+  // coin-flip on whether the fictional "Talon Crew" has claimed it this world (same seeded rand()
+  // every client/server uses for the rest of the map, so it's consistent across multiplayer).
+  const gangSites = buildGangSites(rand, buildings);
+  for (const site of gangSites) {
+    if (!site.active) continue;
+    for (const id of site.graffitiBuildingIds) {
+      const existing = props.graffiti.find((gr) => gr.b === id);
+      if (existing) existing.gang = 1; else props.graffiti.push({ b: id, v: Math.floor(rand() * 6), gang: 1 });
+    }
+  }
+
   // ---- spawn points
   const spawnPoints = [W([266, 544]), W([250, 541]), W([282, 480]), W([318, 541]), W([372, 541])].map(([x, z]) => ({ x, z }));
 
   // ---- activity venues
   const venues = buildVenues(landmarks);
 
-  return { S, roads, graph, buildings, colliders, landmarks, props, vehicleSpawns, special, spawnPoints, venues, roadIndex };
+  return { S, roads, graph, buildings, colliders, landmarks, props, vehicleSpawns, special, spawnPoints, venues, roadIndex, gangSites };
 }
 
 function pick(r, arr) { return arr[Math.floor(r() * arr.length)]; }
@@ -706,6 +718,32 @@ function addLandmarkColliders(L, colliders) {
   box('support', wx(92), wz(716), 3, 102 * S, 0, -3, 0.6, { walk: true });
   box('support', wx(140), wz(816), 50 * S, 3, 0, -3, 0.6, { walk: true });
   for (let i = 0; i < 6; i++) box('support', wx(165), wz(645 + i * 30), 42 * S, 1.3, 0, -3, 0.5, { walk: true, pontoon: true });
+}
+
+// ---------------------------------------------------------------- gang encounters (Stage 14)
+// Picks two well-separated rough-neighbourhood anchors (existing rough_apartment/rough_house
+// buildings, so they're guaranteed to already be valid, on-land, residential-feeling spots) and
+// independently coin-flips whether each is "claimed" this world. An active site gets nearby
+// buildings tagged for gang graffiti (applied by the caller), a few car-parking spots, and a
+// handful of NPC standing spots for the encounter system (src/systems/GangEncounter.js) to use.
+function buildGangSites(rand, buildings) {
+  const pool = buildings.filter((b) => b.type === 'rough_apartment' || b.type === 'rough_house');
+  if (!pool.length) return [];
+  const first = pool[Math.floor(rand() * pool.length)];
+  let second = first, bestD = -1;
+  for (const b of pool) { const d = Math.hypot(b.x - first.x, b.z - first.z); if (d > bestD) { bestD = d; second = b; } }
+  const anchors = second !== first ? [first, second] : [first];
+  return anchors.map((anchor) => {
+    const active = rand() < 0.5;
+    const nearby = pool.filter((b) => b !== anchor && Math.hypot(b.x - anchor.x, b.z - anchor.z) < 30).slice(0, 4);
+    const cx = anchor.x + Math.sin(anchor.rot) * (anchor.hz + 7), cz = anchor.z + Math.cos(anchor.rot) * (anchor.hz + 7);
+    return {
+      x: anchor.x, z: anchor.z, active,
+      graffitiBuildingIds: [anchor, ...nearby].map((b) => b.id),
+      carSpots: [0, 1, 2].map((i) => ({ x: cx + (i - 1) * 4.5, z: cz + (i % 2 ? 3 : -3), rot: anchor.rot })),
+      npcSpots: [0, 1, 2, 3, 4].map(() => ({ x: cx - 2 + (rand() - 0.5) * 8, z: cz + (rand() - 0.5) * 10 })),
+    };
+  });
 }
 
 // ---------------------------------------------------------------- props

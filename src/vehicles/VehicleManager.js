@@ -71,6 +71,7 @@ export class VehicleManager {
     if (!st) return null;
     const v = new Vehicle(this, { id, type: st.type, x: st.x, y: st.y, z: st.z, yaw: st.yaw });
     v.dmg = st.dmg || 0;
+    v.locked = !!st.locked;
     v.driver = st.driver || null; v.passengers = st.passengers || [];
     this.vehicles.set(id, v);
     this.game.engine.scene.add(v.group);
@@ -105,6 +106,7 @@ export class VehicleManager {
     if (this.current || this.toggleCd > 0 || this.entering) return;
     const v = this.nearest(pos, 3.6);
     if (v) {
+      if (v.locked) { out.push({ label: `${v.spec.name} (guarded — clear the gang first)`, key: 'vehicle', priority: 4, action: () => g.ui.notify('This car is guarded — deal with the gang first.', 'bad') }); return; }
       const busy = v.driver && v.driver !== g.net.id;
       out.push({ label: v.destroyed ? `${v.spec.name} (wrecked)` : busy ? `Ride as passenger (${v.spec.name})` : `Drive ${v.spec.name}`, key: 'vehicle', priority: 4, action: () => !v.destroyed && this.enter(v, busy ? 1 : 0) });
     } else if (g.traffic) {

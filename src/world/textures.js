@@ -237,6 +237,26 @@ export function graffitiTexture(v) {
   }, { repeat: false });
 }
 
+// v1.2 Stage 14: a spray-painted flag/tag for the fictional "Talon Crew" gang — invented colours
+// and a claw-mark emblem, no real-world flag or nationality involved (see STATUS.md).
+export function gangFlagTexture() {
+  return canvasTex('gangFlag', 256, 160, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    g.save(); g.translate(w / 2, h / 2); g.rotate(-0.05);
+    // diagonal two-tone flag shape, spray-can edges
+    g.fillStyle = '#141414'; g.fillRect(-110, -55, 220, 110);
+    g.fillStyle = '#b3121f';
+    g.beginPath(); g.moveTo(-110, 55); g.lineTo(60, -55); g.lineTo(110, -55); g.lineTo(110, 55); g.closePath(); g.fill();
+    // three claw-slash marks (the crew's mark) in pale gold
+    g.strokeStyle = '#e8c15a'; g.lineWidth = 9; g.lineCap = 'round';
+    for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(-30 + i * 22, -40); g.lineTo(10 + i * 22, 40); g.stroke(); }
+    g.restore();
+    // spray drips
+    g.fillStyle = 'rgba(20,20,20,0.5)';
+    for (let i = 0; i < 8; i++) { const x = 20 + Math.random() * (w - 40); g.fillRect(x, h * 0.7, 3, 8 + Math.random() * 20); }
+  }, { repeat: false });
+}
+
 export function signTexture(text, bg = '#1d2b3a', fg = '#ffffff') {
   return canvasTex('sign_' + text + bg, 512, 128, (g, w, h) => {
     g.fillStyle = bg; g.fillRect(0, 0, w, h);

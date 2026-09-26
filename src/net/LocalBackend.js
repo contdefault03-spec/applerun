@@ -37,6 +37,14 @@ export class LocalBackend {
         if (data.set) { mem[data.npc] = data.set; this.save(); }
         return { ok: true, memory: mem[data.npc] || null };
       }
+      case 'gangClear': {
+        this.claimedGang ||= new Set();
+        if (this.claimedGang.has(data.site)) return { ok: false, error: 'Already claimed' };
+        this.claimedGang.add(data.site);
+        const r = applyReward(this.profile, 'gangClear');
+        if (r.ok) this.save();
+        return { ...r, profile: this.profile };
+      }
       case 'listRooms': return { ok: true, rooms: [] };
       default: return { ok: false, error: 'offline' };
     }

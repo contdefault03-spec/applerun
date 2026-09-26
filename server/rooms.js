@@ -266,6 +266,19 @@ export class RoomManager {
         }
         return { ok: false, error: 'not allowed' };
       }
+      case 'gangClear': {
+        // one claim per site per room — prevents every player who was in the fight from each
+        // getting paid, and stops re-claiming after the cars have already been handed out
+        const site = num(d.site, -1);
+        if (site < 0 || !room) return { ok: false, error: 'invalid site' };
+        room.gangClear ??= new Set();
+        if (room.gangClear.has(site)) return { ok: false, error: 'Already claimed' };
+        room.gangClear.add(site);
+        const r = applyReward(c.profile, 'gangClear');
+        c.dirtyProfile = true;
+        room.broadcast({ t: 'gangClear', site });
+        return { ...r, profile: c.profile };
+      }
       case 'npcMemory': {
         const mem = (c.profile.npcMemory ||= {});
         const key = clean(d.npc, 40);
