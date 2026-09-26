@@ -377,7 +377,7 @@ export class InteriorManager {
         const screenBase = 0.6, screenMaxH = H - screenBase - 1.4;
         let screenW = W * 0.85, screenH = screenW * 9 / 16;
         if (screenH > screenMaxH) { screenH = screenMaxH; screenW = screenH * 16 / 9; }
-        const screenMat = mat('#0a0a0a', { emissive: '#111111', emissiveIntensity: 0 });
+        const screenMat = mat('#0a0a0a', { emissive: '#ffffff', emissiveIntensity: 0 });
         const screen = new THREE.Mesh(new THREE.PlaneGeometry(screenW, screenH), screenMat);
         screen.position.set(0, screenH / 2 + screenBase, -D / 2 + 0.15); g.add(screen);
         const frame = new THREE.Mesh(new THREE.BoxGeometry(screenW + 0.4, screenH + 0.4, 0.1), mat('#1b1b1b'));
@@ -539,14 +539,17 @@ export class InteriorManager {
         if (!it.screen.panner && g.audio.ctx) {
           const src = g.audio.ctx.createMediaElementSource(video);
           const p = it.origin, sy = it.screen.mesh.position.y;
-          const panner = g.audio.out('sfx', { x: p.x + it.screen.mesh.position.x, y: sy, z: p.z + it.screen.mesh.position.z }, { ref: 4, max: 40 });
-          src.connect(panner);
+          const boost = g.audio.ctx.createGain(); boost.gain.value = 1.8; // the raw video track reads quiet otherwise
+          const panner = g.audio.out('sfx', { x: p.x + it.screen.mesh.position.x, y: sy, z: p.z + it.screen.mesh.position.z }, { ref: 8, max: 45 });
+          src.connect(boost); boost.connect(panner);
           it.screen.panner = panner;
         }
         video.muted = false;
         video.play().catch(() => {});
       });
-      it.screen.mat.emissiveIntensity = 1;
+      // a bright projected-image look — the room itself stays dim so the screen reads as the
+      // light source, same as a real theatre
+      it.screen.mat.emissiveIntensity = 2.6;
     } else {
       video.pause();
       it.screen.mat.emissiveIntensity = 0;

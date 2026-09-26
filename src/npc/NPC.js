@@ -128,7 +128,12 @@ export class NPC {
           this.timer = 6 + Math.random() * 8;
           if (Math.random() < 0.15) { this.state = 'idle'; this.timer = 2 + Math.random() * 5; this.target = null; }
         }
-        if (this.target) { want = this.target; speed = this.jogger ? this.prof.run : this.prof.walk; }
+        if (this.target) {
+          // stop and check for traffic before actually stepping onto a road being crossed
+          if (this.crossRoad && this.mgr.trafficDanger(pos, this.crossRoad)) { speed = 0; face = null; break; }
+          if (this.crossRoad) this.crossRoad = null; // clear once it's safe to go (checked again next tick if still mid-crossing)
+          want = this.target; speed = this.jogger ? this.prof.run : this.prof.walk;
+        }
         break;
       case 'talkPlayer':
         face = Math.atan2(ctx.player.x - pos.x, ctx.player.z - pos.z);
@@ -160,9 +165,12 @@ export class NPC {
         if (!t || this.timer <= 0 || !this.threatAlive()) { this.state = this.fixed ? 'idle' : 'wander'; this.threat = null; break; }
         const d = pos.distanceTo(t);
         face = Math.atan2(t.x - pos.x, t.z - pos.z);
-        if (d > 22) { want = t; speed = this.prof.run * 0.8; }
+        // never shoot through a wall: an NPC (police included) with no line of sight advances or
+        // repositions to try to find an angle instead of camping and spraying a blocked shot
+        const hasLOS = this.mgr.hasLineOfSight(pos, t);
+        if (d > 22 || !hasLOS) { want = t; speed = this.prof.run * 0.8; }
         else if (d < 5 && this.role !== 'police') { const away = pos.clone().sub(t).setY(0).normalize(); want = pos.clone().addScaledVector(away, 4); speed = this.prof.walk; }
-        if (this.shootCd <= 0 && d < 45) { this.shootCd = (this.weapon === 'ak47' ? 0.25 : 0.7) + Math.random() * 0.6; this.mgr.npcShoot(this, t, d); }
+        if (this.shootCd <= 0 && d < 45 && hasLOS) { this.shootCd = (this.weapon === 'ak47' ? 0.25 : 0.7) + Math.random() * 0.6; this.mgr.npcShoot(this, t, d); }
         if (d > 70) { this.state = 'wander'; this.threat = null; }
         break;
       }

@@ -188,12 +188,32 @@ export class NPCManager {
       const off = road.width / 2 + 1.6;
       const step = 10 + Math.random() * 10;
       const cx = n.q[0] + tx * dir * step, cz = n.q[1] + tz * dir * step;
-      // occasionally cross the road
+      // occasionally cross the road — flag it so update() makes the NPC actually look both ways
+      // and wait for a gap instead of just walking straight into traffic
       const cross = Math.random() < 0.08 ? -1 : 1;
+      npc.crossRoad = cross === -1 ? road : null;
       return new THREE.Vector3(cx - tz * side * cross * off, 0, cz + tx * side * cross * off);
     }
     const a = Math.random() * Math.PI * 2;
     return new THREE.Vector3(p.x + Math.cos(a) * 10, 0, p.z + Math.sin(a) * 10);
+  }
+
+  /** Is a car on `road` bearing down on `pos` closely enough that crossing now would be unsafe?
+   * Used by NPC.js's wander state so pedestrians actually check for traffic before crossing
+   * instead of just walking straight across (cars already brake for pedestrians they can see —
+   * this is the pedestrian's own half of that same interaction). */
+  trafficDanger(pos, road) {
+    const traf = this.game.traffic;
+    if (!traf || !road) return false;
+    for (const c of traf.cars) {
+      if (c.edge?.road !== road.id) continue;
+      const dx = c.p.x - pos.x, dz = c.p.z - pos.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 15 || c.speed < 1) continue;
+      const approaching = -(dx * c.p.tx + dz * c.p.tz); // >0 if the car's heading points toward pos
+      if (approaching > 0) return true;
+    }
+    return false;
   }
 
   /** A loud event: gunshots, explosions, fights. */
@@ -255,6 +275,18 @@ export class NPCManager {
       }
     } else if (t && t.takeDamage && npc.position.distanceTo(t.position) < 1.8) { t.takeDamage(10, npc); g.audio.punch(t.position); }
   }
+  /** Is there clear terrain/building geometry between two points (a real wall check, not just
+   * distance)? Used to gate whether an NPC is even allowed to fire — never just whether the shot
+   * happens to connect. */
+  hasLineOfSight(from3, to3) {
+    const from = from3.clone(); from.y += 1.5;
+    const to = to3.clone(); to.y += 1.2;
+    const dir = to.clone().sub(from); const L = dir.length();
+    if (L < 0.5) return true;
+    dir.normalize();
+    const blocked = this.game.world.collision.raycast([from.x, from.y, from.z], [dir.x, dir.y, dir.z], L - 0.5, { terrain: true, filter: (c) => c.kind !== 'npc' && c.kind !== 'vehicle' });
+    return !blocked;
+  }
   npcShoot(npc, targetPos, dist) {
     const g = this.game;
     const from = npc.position.clone(); from.y += npc.height * 0.75;
@@ -276,8 +308,12 @@ export class NPCManager {
         if (g.vehicles?.current) g.vehicles.current.dmg = Math.min(100, g.vehicles.current.dmg + 2);
       } else g.fx?.tracer(from, miss);
     } else if (t && t.takeDamage) {
-      g.fx?.tracer(from, to);
-      if (Math.random() < hitChance + 0.2) t.takeDamage(12, npc);
+      // same wall check for NPC-vs-NPC fire (police vs. a fleeing civilian, gang vs. a witness,
+      // etc.) — this branch previously had none at all
+      if (this.hasLineOfSight(npc.position, t.position ?? t) && Math.random() < hitChance + 0.2) {
+        g.fx?.tracer(from, to);
+        t.takeDamage(12, npc);
+      } else g.fx?.tracer(from, miss);
     }
     this.noise(from, 45, 'gunshot', npc);
   }

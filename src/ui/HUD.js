@@ -1,5 +1,5 @@
 import { h } from './dom.js';
-import { toPx, getLayout, districtAt } from '../../shared/map/layout.js';
+import { toPx, getLayout, districtAt, combatArenaGeom } from '../../shared/map/layout.js';
 
 // In-game HUD: vitals, money, weapon, wanted level, minimap (drawn from the reference map),
 // prompts, notifications, kill feed, activity scoreboard, chat and the full-screen map.
@@ -204,10 +204,17 @@ export class HUD {
         }
         for (const b of L.buildings) {
           if (b.special) continue; // already drawn above
-          const label = { shop: 'Shop', restaurant: 'Restaurant', bar: 'Bar', nightclub: 'Nightclub', clothing: 'Clothing', gunstore: 'Guns', gym: 'Gym', office: 'Office' }[b.type];
-          if (label) dot(b.door.x, b.door.z, '#c86bff', 4, label);
+          const label = { shop: 'Shop', restaurant: 'Restaurant', bar: 'Bar', nightclub: 'Nightclub', clothing: 'Clothing', gunstore: 'Guns', gym: 'Gym', office: 'Office', clinic: 'Clinic', dentist: 'Dentist', pharmacy: 'Pharmacy', supermarket: 'Supermarket', barber: 'Barber', bank: 'Bank', arcade: 'Arcade', cinema: 'Cinema' }[b.type];
+          if (label) dot(b.door.x, b.door.z, b.type === 'cinema' ? '#ff6bd6' : '#c86bff', 4, label);
         }
+        // concert hall gets its own dedicated building special (like the stadium/arena), and the
+        // combat arena and any active gang neighbourhood are landmark-level too — all worth
+        // finding on the detailed map, not just the plain shops list.
+        const concertBid = L.buildings.findIndex((b) => b.type === 'concert');
+        if (concertBid >= 0) { const b = L.buildings[concertBid]; dot(b.door.x, b.door.z, '#3ddc84', 8, 'Concert hall'); }
         for (const [key, label] of [['stadium', 'Stadium (football)'], ['arena', 'Arena (basketball)'], ['dome', 'Dome (wrestling)'], ['resort', 'Ski resort'], ['pier', 'Pier'], ['plazaPark', 'Park']]) { const b = L.landmarks[key]; if (b) dot(b.x, b.z, '#3ddc84', 8, label); }
+        { const a = combatArenaGeom(); dot(a.cx, a.cz, '#3ddc84', 8, 'Combat arena'); }
+        for (const site of L.gangSites || []) if (site.active) dot(site.x, site.z, '#ff3b3b', 7, 'Gang territory');
       } else {
         for (const [key, label] of [['stadium', 'Stadium (football)'], ['arena', 'Arena (basketball)'], ['dome', 'Dome (wrestling)']]) { const b = L.landmarks[key]; dot(b.x, b.z, '#3ddc84', 8, label); }
       }

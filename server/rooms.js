@@ -374,7 +374,20 @@ export class RoomManager {
         return;
       }
       case 'wanted': {
-        c.wanted = Math.max(0, Math.min(5, m.level | 0));
+        // Full server-side pursuit simulation (LOS, search states) isn't implemented — the
+        // client still decides *when* it's seen/lost — but a client can no longer just claim
+        // "wanted: 0" to instantly wipe a pursuit: a decrease is only trusted if enough real time
+        // has passed since it last went up to match the client's own slowest legitimate decay
+        // rate (12s + 6s/level, from PoliceManager's own timer), so this at least can't be
+        // trivially cheated by spamming the message.
+        const lvl = Math.max(0, Math.min(5, m.level | 0));
+        const t = now();
+        if (lvl < c.wanted) {
+          const minWait = (12 + c.wanted * 6) * 1000 * 0.85; // small margin for network jitter
+          if (t - (c.wantedChangedAt || 0) < minWait) return; // ignore — too soon to be real decay
+        }
+        if (lvl !== c.wanted) c.wantedChangedAt = t;
+        c.wanted = lvl;
         room.broadcast({ t: 'playerMeta', id: c.id, wanted: c.wanted }, c);
         return;
       }
