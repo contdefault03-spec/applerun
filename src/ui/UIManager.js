@@ -14,17 +14,46 @@ export class UIManager {
   click() { this.game.audio.ui('click'); }
 
   // ------------------------------------------------------------ loading
+  // v1.3: a cinematic loading sequence — the 5 supplied loading images crossfade every ~5s
+  // (shuffled once so repeat visits don't always start on the same one), with the game's name
+  // small in the corner and a rotating status message, instead of a bare debug progress bar.
   showLoading() {
-    this.loading = h('div#loading', h('div.logo', 'ALFREDO', h('br'), 'APPLERUN'), h('div.sub', 'Multiplayer Open World'), h('div.bar', h('i')), h('div.msg', 'Loading…'), h('div.err'));
+    const pics = ['loading1', 'loading2', 'loading3', 'loading4', 'loading5']
+      .map((id) => `/assets/loading/${id}.png`)
+      .sort(() => Math.random() - 0.5);
+    const layerA = h('div.loading-pic.on', { style: { backgroundImage: `url(${pics[0]})` } });
+    const layerB = h('div.loading-pic');
+    const msgEl = h('div.loading-msg', 'Loading…');
+    const barI = h('i');
+    this.loading = h('div#loading',
+      layerA, layerB,
+      h('div.loading-scrim'),
+      h('div.loading-brand', 'alfredo applerun'),
+      h('div.loading-corner', msgEl),
+      h('div.bar', barI),
+      h('div.err'));
     document.body.append(this.loading);
+    let idx = 0, front = layerA, back = layerB;
+    this._loadingCycle = setInterval(() => {
+      idx = (idx + 1) % pics.length;
+      back.style.backgroundImage = `url(${pics[idx]})`;
+      back.classList.add('on'); front.classList.remove('on');
+      [front, back] = [back, front];
+    }, 5000);
+    const filler = ['Loading city…', 'Preparing traffic…', 'Loading characters…', 'Preparing world…', 'Loading beach…', 'Preparing multiplayer…', 'Almost ready…'];
+    let fi = 0;
+    this._loadingMsgCycle = setInterval(() => { if (!this._realLabel) msgEl.textContent = filler[fi++ % filler.length]; }, 2200);
   }
   setLoading(p, msg) {
     if (!this.loading) return;
     if (p !== null) this.loading.querySelector('.bar i').style.width = `${Math.round(p * 100)}%`;
-    if (msg) this.loading.querySelector('.msg').textContent = msg;
+    if (msg) { this._realLabel = msg; this.loading.querySelector('.loading-msg').textContent = msg; }
   }
   loadingError(msg) { if (this.loading) this.loading.querySelector('.err').textContent = msg; }
-  hideLoading() { this.loading?.remove(); this.loading = null; }
+  hideLoading() {
+    clearInterval(this._loadingCycle); clearInterval(this._loadingMsgCycle);
+    this.loading?.remove(); this.loading = null;
+  }
 
   // ------------------------------------------------------------ layers
   setLayer(name, el) {
@@ -35,6 +64,25 @@ export class UIManager {
   clearMenus() { for (const k of ['menu', 'chars', 'modal']) this.setLayer(k, null); this.modalStack = []; }
 
   // ------------------------------------------------------------ main menu
+  // v1.3: shown once right after the loading sequence, before the normal main menu — the
+  // "major new feature" entry point (story intro, character select, skip straight to the game).
+  showIntroLauncher() {
+    this.clearMenus();
+    const g = this.game;
+    g.setMode('menu');
+    const item = (label, sub, fn) => h('button.menu-btn', { onclick: () => { this.click(); fn(); }, onmouseenter: () => g.audio.ui('hover') }, label, sub ? h('small', sub) : null);
+    const el = h('div.screen',
+      h('div.menu-left',
+        h('div.logo', 'ALFREDO', h('br'), 'APPLERUN'),
+        h('div.tagline', 'A crew, a bad night, a long way home.'),
+        item('Play Multiplayer', 'Create or join a room, then live the story together', () => g.startStoryFlow(false)),
+        item('Play Solo', 'You plus 4 AI crewmates', () => g.startStoryFlow(true)),
+        item('Skip Intro', 'Go straight to the full game', () => g.showMenu()),
+      ),
+    );
+    this.setLayer('menu', el);
+  }
+
   showMainMenu() {
     this.clearMenus();
     const g = this.game;
@@ -79,11 +127,11 @@ export class UIManager {
   }
 
   // ------------------------------------------------------------ character select
-  showCharacterSelect(onDone, { confirmLabel = 'Select' } = {}) {
+  showCharacterSelect(onDone, { confirmLabel = 'Select', list: roster = PLAYABLE } = {}) {
     this.clearMenus();
     const g = this.game;
     let sel = this.settings.get('player.character');
-    if (!PLAYABLE_BY_ID[sel]) sel = 'max';
+    if (!roster.some((d) => d.id === sel)) sel = roster[0].id;
     g.showroom.show(sel);
     g.setMode('showroom');
     const info = h('div.char-info');
@@ -102,7 +150,7 @@ export class UIManager {
         ),
       );
     };
-    const cards = PLAYABLE.map((d) => h('div.char-card' + (d.id === sel ? '.on' : ''), {
+    const cards = roster.map((d) => h('div.char-card' + (d.id === sel ? '.on' : ''), {
       onclick: (e) => { sel = d.id; g.showroom.show(sel); g.audio.ui('click'); list.querySelectorAll('.char-card').forEach((c) => c.classList.remove('on')); e.currentTarget.classList.add('on'); renderInfo(); },
     }, h('div.sw', { style: { background: d.accent } }, d.name[0]), h('div', h('b', d.name), h('span', d.tagline))));
     const list = h('div.char-list', h('h2', 'Choose your character'), ...cards);

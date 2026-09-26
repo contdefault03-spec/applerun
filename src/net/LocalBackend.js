@@ -18,6 +18,13 @@ export class LocalBackend {
         return { ...r, profile: this.profile };
       }
       case 'reward': {
+        if (data.kind === 'storyStart') {
+          if (this.storyStarted) return { ok: false, error: 'Already granted' };
+          this.storyStarted = true;
+          this.profile.money = 50000; // exact starting balance, not an add-on-top reward
+          this.save();
+          return { ok: true, profile: this.profile };
+        }
         const r = applyReward(this.profile, data.kind, data);
         if (r.ok) this.save();
         return { ...r, profile: this.profile };

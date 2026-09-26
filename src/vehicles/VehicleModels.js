@@ -17,8 +17,17 @@ export const SPECS = {
   truck: { name: 'Box Truck', length: 7.2, width: 2.4, height: 3.2, wheelR: 0.5, wheelBase: 4.4, track: 2.0, maxSpeed: 32, accel: 4.2, brake: 11, steer: 0.4, grip: 6, mass: 7000, seats: 2, colors: ['#e53935', '#1565c0', '#eeeeee', '#2e7d32'], truck: true },
   motorcycle: { name: 'Motorcycle', length: 2.1, width: 0.8, height: 1.15, wheelR: 0.33, wheelBase: 1.45, track: 0, maxSpeed: 60, accel: 13, brake: 20, steer: 0.6, grip: 8, mass: 220, seats: 2, colors: ['#d50000', '#212121', '#ff6d00', '#2962ff', '#00c853'], bike: true },
   boat: { name: 'Skiff', length: 6.2, width: 2.2, height: 1.6, wheelR: 0, wheelBase: 3, track: 1.6, maxSpeed: 18, accel: 4.5, brake: 6, steer: 0.5, grip: 3, mass: 900, seats: 4, colors: ['#e0e0e0', '#1565c0', '#e53935'], boat: true },
+  // v1.3 story-intro escape vehicle — body comes from the supplied startcar.glb (see
+  // setCustomModel below) instead of a procedural body; physics fields are still plain numbers
+  // so it drives through the exact same Vehicle.js code as every other car.
+  startcar: { name: 'Getaway Car', length: 4.5, width: 1.9, height: 1.3, wheelR: 0.34, wheelBase: 2.7, track: 1.6, maxSpeed: 50, accel: 9, brake: 16, steer: 0.5, grip: 7.5, mass: 1400, seats: 4, colors: ['#3a3a3a'], custom: true },
 };
 for (const s of Object.values(SPECS)) s.interior = !s.bike;
+
+// v1.3: register a loaded GLTF scene to use as a vehicle type's body instead of the procedural
+// builder below (used once, for the story intro's startcar.glb — see StoryIntro.js).
+const customModels = new Map();
+export function setCustomModel(type, gltfScene) { customModels.set(type, gltfScene); }
 
 const cache = new Map();
 function colorGeo(geo, color) {
@@ -102,6 +111,16 @@ function buildDriverFigure(s, seatIndex = 0) {
 /** Build a vehicle model. Returns { group, wheels: [{obj, front, x, z}], lightbar: [meshes], seatLocal: [...] } */
 export function buildVehicle(type, color, accent = null, withDriver = false) {
   const s = SPECS[type] || SPECS.sedan;
+  if (s.custom && customModels.has(type)) {
+    const group = new THREE.Group();
+    const body = customModels.get(type).clone();
+    body.rotation.y = Math.PI / 2; // the supplied model's long axis is X, this game's forward is +Z
+    body.scale.setScalar(s.length); // the source model is normalized to a 1-unit length
+    body.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    group.add(body);
+    setLayer(group, LAYER.MID);
+    return { group, wheels: [], lights: {}, spec: s };
+  }
   const key = type + color + (accent || '');
   let parts = cache.get(key);
   if (!parts) { parts = buildParts(type, s, color, accent); cache.set(key, parts); }

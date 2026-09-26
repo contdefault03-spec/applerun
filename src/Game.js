@@ -33,6 +33,7 @@ import { FishingMission } from './systems/FishingMission.js';
 import { AdminMenu } from './systems/AdminMenu.js';
 import { ATMs } from './systems/ATMs.js';
 import { GangEncounter } from './systems/GangEncounter.js';
+import { StoryIntro, STORY_CHARACTERS } from './systems/StoryIntro.js';
 import { ActivityManager } from './activities/ActivityManager.js';
 import { VoiceChat } from './net/VoiceChat.js';
 import { districtAt, getLayout } from '../shared/map/layout.js';
@@ -93,6 +94,7 @@ export class Game {
     this.admin = new AdminMenu(this);
     this.atms = this.addSystem(new ATMs(this));
     this.gangs = this.addSystem(new GangEncounter(this));
+    this.storyIntro = this.addSystem(new StoryIntro(this));
     this.dialogue = new Dialogue(this);
     progress(0.9, 'Dressing up the citizens of Applerun…');
     await this.npcs.prebuild();
@@ -218,12 +220,30 @@ export class Game {
   leaveActivity() { return this.activities.leave(); }
 
   enterWorld() {
+    if (this.pendingStoryFlow) { this.pendingStoryFlow = false; this.beginStorySelect(false); return; }
     this.ui.clearMenus();
     if (!this.player) this.spawnPlayer();
     this.setMode('playing');
     this.audio.stopMusic();
     this.input.lock();
     if (!this.welcomed) { this.welcomed = true; this.hud.bigMessage('ALFREDO APPLERUN', `Welcome, ${this.settings.get('player.name')}. Press M for the map, P for jobs & activities.`, 5); }
+  }
+  // v1.3: entry points for the new intro launcher menu (see UIManager.showIntroLauncher)
+  startStoryFlow(solo) {
+    if (!this.settings.get('player.name')) return this.ui.askName(() => this.startStoryFlow(solo));
+    if (solo) return this.beginStorySelect(true);
+    this.pendingStoryFlow = true;
+    this.ui.showMultiplayer();
+  }
+  beginStorySelect(solo) {
+    this.ui.showCharacterSelect((confirmed) => {
+      if (!confirmed) return;
+      if (!this.player) this.spawnPlayer();
+      this.setMode('playing');
+      this.audio.stopMusic();
+      this.input.lock();
+      this.storyIntro.begin(solo);
+    }, { confirmLabel: 'Start', list: STORY_CHARACTERS });
   }
 
   spawnPlayer() {
@@ -451,6 +471,9 @@ export class Game {
 
   // ------------------------------------------------------------------ frame
   update(dt) {
+    // v1.3 story-intro cutscenes: the video overlay owns the whole screen, no controls, no pause —
+    // simplest correct behaviour is to just freeze the underlying game entirely while it plays.
+    if (this.storyIntro?.blockInput) { this.input.endFrame(); return; }
     if (this.mode === 'showroom') { this.showroom.update(dt); this.input.endFrame(); return; }
     if (this.mode === 'menu' || this.mode === 'loading') {
       this.menuT += dt;

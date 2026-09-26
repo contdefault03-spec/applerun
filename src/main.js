@@ -27,7 +27,7 @@ async function boot() {
     return;
   }
   bootUI.hideLoading();
-  game.showMenu();
+  game.ui.showIntroLauncher(); // v1.3: intro launcher (multiplayer / solo / skip) replaces the old direct-to-menu boot
   // Invite links: https://your-site/?room=CODE joins that room straight away
   const invite = new URLSearchParams(location.search).get('room');
   if (invite) {

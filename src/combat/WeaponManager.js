@@ -306,7 +306,13 @@ export class WeaponManager {
       g.fx.blood(hit.point);
     } else if (hit.kind === 'world') {
       const c = hit.collider;
-      if (c?.owner?.spec) { c.owner.dmg = Math.min(100, c.owner.dmg + d.damage * 0.08); g.fx.sparks(hit.point, 5); g.audio.impact(hit.point, 'metal'); if (c.owner.dmg >= 100) g.vehicles.destroy(c.owner); }
+      if (c?.owner?.spec) {
+        g.fx.sparks(hit.point, 5); g.audio.impact(hit.point, 'metal');
+        // v1.3 story-intro chase: a marked vehicle counts direct hits toward its own 10-hit
+        // destruction threshold instead of the normal gradual damage-to-100 model
+        if (g.storyIntro?.chaseCars?.some((cc) => cc.v === c.owner)) g.storyIntro.registerChaseHit(c.owner);
+        else { c.owner.dmg = Math.min(100, c.owner.dmg + d.damage * 0.08); if (c.owner.dmg >= 100) g.vehicles.destroy(c.owner); }
+      }
       else if (c?.traffic) { g.fx.sparks(hit.point, 5); g.audio.impact(hit.point, 'metal'); g.traffic.onRammed(c.traffic, 0); }
       else { g.fx.sparks(hit.point, 4, '#d7ccc8'); g.fx.dust(hit.point); g.audio.impact(hit.point); }
     }

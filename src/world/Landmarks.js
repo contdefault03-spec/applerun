@@ -316,6 +316,23 @@ export function buildLandmarks() {
     for (const [dx, dz] of [[14, 0], [-14, -5]]) { const mound = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 6), M('#f2f6fb')); mound.scale.y = 0.25; mound.position.set(r.x + dx, gy - 0.5, r.z + dz); mound.receiveShadow = true; g.add(mound); }
   }
 
+  // ---------------- v1.3 story intro: a beachside outskirts hotel — the story sequence's final
+  // free-roam spawn point. A simple resort-style tower, not a full interior (out of scope here).
+  if (lm.storyHotel) {
+    const h = lm.storyHotel;
+    const gy = heightAt(h.x, h.z);
+    const hotel = new THREE.Group();
+    const wall = M('#f2ece1'), balcony = M('#8a7a68'), roofM = M('#5a4a3a');
+    hotel.add(box(h.hx * 1.7, 22, h.hz * 1.4, wall, 0, 11, 0));
+    for (let f = 0; f < 6; f++) for (const s of [-1, 1]) hotel.add(box(h.hx * 1.5, 0.15, 0.8, balcony, 0, 3 + f * 3.2, s * (h.hz * 0.7)));
+    hotel.add(box(h.hx * 1.8, 0.4, h.hz * 1.5, roofM, 0, 22.2, 0));
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.4), new THREE.MeshStandardMaterial({ map: signTexture('APPLERUN GRAND HOTEL', '#0d5c4a', '#ffffff'), emissive: '#ffffff', emissiveIntensity: 0.2 }));
+    sign.position.set(0, 20, h.hz * 0.71); hotel.add(sign);
+    hotel.position.set(h.x, gy, h.z);
+    hotel.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.add(hotel);
+  }
+
   // ---------------- Port: container yard, cranes, quay
   {
     const quay = box(220 * 1.2, 2, 6, darkConcrete, wx(895), heightAt(wx(895), wz(788)) - 0.5, wz(786));

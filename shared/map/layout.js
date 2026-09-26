@@ -249,6 +249,9 @@ function buildLayout() {
   lm('pierEnd', 102, 543, 22, 30);
   lm('plazaPark', 328, 468, 38, 38);
   lm('resort', 748, 145, 55, 42);
+  // v1.3 story intro: a resort-style hotel on the outskirts, right next to the beach — where the
+  // story sequence finally hands players back into free-roam.
+  lm('storyHotel', shoreXpx(950) + 20, 950, 34, 26);
   lm('fountainPlaza', 282, 468, 34, 38);
   lm('field', 290, 125, 80, 70);
   lm('basketballCourtPark', 540, 470, 26, 16);

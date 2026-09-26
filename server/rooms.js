@@ -226,6 +226,13 @@ export class RoomManager {
         if (kind === 'dolma') { if (c.profile.money < 12) return { ok: false, error: 'A dolma costs $12' }; const r = applyReward(c.profile, 'dolma'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'grocery') { if (c.profile.money < 8) return { ok: false, error: 'Groceries cost $8' }; const r = applyReward(c.profile, 'grocery'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
         if (kind === 'movieTicket') { if (c.profile.money < 10) return { ok: false, error: 'A ticket costs $10' }; const r = applyReward(c.profile, 'movieTicket'); c.dirtyProfile = true; return { ...r, profile: c.profile }; }
+        if (kind === 'storyStart') {
+          if (c.storyStarted) return { ok: false, error: 'Already granted' }; // one-time, can't be farmed by re-triggering the finish phase
+          c.storyStarted = true;
+          c.profile.money = 50000; // an exact starting balance, not an add-on-top reward
+          c.dirtyProfile = true;
+          return { ok: true, profile: c.profile };
+        }
         if (kind === 'arcade') {
           if (c.profile.money < 5) return { ok: false, error: 'A game costs $5' };
           c.rewardAt ??= {};
@@ -371,6 +378,14 @@ export class RoomManager {
       }
       case 'respawnReq': {
         if (c.dead && now() - c.deadAt > RESPAWN_MS - 200 && room.activity?.allowRespawn?.(c) !== false) this.respawn(c);
+        return;
+      }
+      case 'story': {
+        // v1.3 story-intro: only the room host may advance the shared cutscene sequence — every
+        // client (host included) applies the transition purely from this broadcast, never from
+        // its own local completion check, so one player's client can't race ahead of the others.
+        if (!room || room.hostId !== c.id) return;
+        room.broadcast({ t: 'story', phase: clean(m.phase, 24), data: m.data && typeof m.data === 'object' ? m.data : {} });
         return;
       }
       case 'wanted': {
