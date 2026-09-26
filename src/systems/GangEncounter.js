@@ -13,16 +13,12 @@ const GANG_NAME = 'Talon Crew';
 export class GangEncounter {
   constructor(game) {
     this.game = game;
+    // carIds ('p'+index into the shared layout.vehicleSpawns array) and idx (this site's real
+    // position in layout.gangSites, matched by the server's gangClear/vehEnter handlers) both
+    // come from the layout itself — the server addresses parked cars the same way every other
+    // parked car in the city is addressed, so entering one works without any special-casing.
     const sites = (game.layout.gangSites || []).filter((s) => s.active);
-    this.sites = sites.map((s, idx) => ({
-      ...s, idx,
-      npcs: [], state: 'dormant', cleared: false, warnedAt: 0,
-      carIds: s.carSpots.map((c, ci) => {
-        const vid = `gang${idx}_${ci}`;
-        game.vehicles.states.set(vid, { type: 'sports', x: c.x, z: c.z, yaw: c.rot, dmg: 0, locked: true });
-        return vid;
-      }),
-    }));
+    this.sites = sites.map((s) => ({ ...s, npcs: [], state: 'dormant', cleared: false, warnedAt: 0 }));
     game.net.on('gangClear', (m) => this.onRemoteClear(m));
   }
 
@@ -34,7 +30,7 @@ export class GangEncounter {
     }
   }
   onRemoteClear(m) {
-    const site = this.sites[m.site];
+    const site = this.sites.find((s) => s.idx === m.site);
     if (!site || site.cleared) return;
     site.cleared = true;
     this.unlockCars(site);

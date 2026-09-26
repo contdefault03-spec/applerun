@@ -459,13 +459,28 @@ function buildLayout() {
   // coin-flip on whether the fictional "Talon Crew" has claimed it this world (same seeded rand()
   // every client/server uses for the rest of the map, so it's consistent across multiplayer).
   const gangSites = buildGangSites(rand, buildings);
-  for (const site of gangSites) {
-    if (!site.active) continue;
+  gangSites.forEach((site, i) => {
+    site.idx = i;
+    if (!site.active) return;
     for (const id of site.graffitiBuildingIds) {
       const existing = props.graffiti.find((gr) => gr.b === id);
       if (existing) existing.gang = 1; else props.graffiti.push({ b: id, v: Math.floor(rand() * 6), gang: 1 });
+      // a second flag on a different wall face of the same building, so the crew's mark reads as
+      // "painted all over the block" rather than one tag per building
+      if (rand() < 0.6) props.graffiti.push({ b: id, v: Math.floor(rand() * 4) + 1, gang: 1 });
     }
-  }
+    // Gang cars are real entries in the shared vehicleSpawns list (same one every parked car in
+    // the city uses), not a client-only injection — the server addresses parked vehicles as
+    // 'p'+index into this exact array, so anything not in it is a vehicle the server has never
+    // heard of ("no such vehicle" on entry). Colours alternate between two Talon Crew liveries
+    // (matte black / deep crimson) instead of the class's normal random paint job, and every
+    // other car gets the crew's flag decal (added client-side, see VehicleManager.instantiate).
+    site.carIds = site.carSpots.map((c, ci) => {
+      const id = vehicleSpawns.length;
+      vehicleSpawns.push({ id, x: c.x, z: c.z, rot: c.rot, type: 'sports', fixed: `gang${site.idx}_${ci}`, locked: true, color: ci % 2 ? '#7a1620' : '#161616', gangFlag: ci % 2 === 0 });
+      return 'p' + id;
+    });
+  });
 
   // ---- spawn points
   const spawnPoints = [W([266, 544]), W([250, 541]), W([282, 480]), W([318, 541]), W([372, 541])].map(([x, z]) => ({ x, z }));
@@ -735,7 +750,7 @@ function buildGangSites(rand, buildings) {
   const anchors = second !== first ? [first, second] : [first];
   return anchors.map((anchor) => {
     const active = rand() < 0.5;
-    const nearby = pool.filter((b) => b !== anchor && Math.hypot(b.x - anchor.x, b.z - anchor.z) < 30).slice(0, 4);
+    const nearby = pool.filter((b) => b !== anchor && Math.hypot(b.x - anchor.x, b.z - anchor.z) < 45).slice(0, 7);
     const cx = anchor.x + Math.sin(anchor.rot) * (anchor.hz + 7), cz = anchor.z + Math.cos(anchor.rot) * (anchor.hz + 7);
     return {
       x: anchor.x, z: anchor.z, active,

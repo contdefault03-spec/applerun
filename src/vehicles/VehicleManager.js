@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Vehicle } from './Vehicle.js';
 import { SPECS } from './VehicleModels.js';
 import { heightAt } from '../../shared/map/terrain.js';
+import { gangFlagTexture } from '../world/textures.js';
 
 // Owns every vehicle: parked cars from the map (streamed around the player), networked
 // vehicles driven by other players, and the local player's vehicle (driver or passenger).
@@ -15,7 +16,7 @@ export class VehicleManager {
     this.layout = game.layout;
     this.vehicles = new Map(); // id -> Vehicle (instantiated)
     this.states = new Map();   // id -> persistent state for parked/moved vehicles {type, x,y,z,yaw,dmg,color}
-    for (const sp of this.layout.vehicleSpawns) this.states.set('p' + sp.id, { type: sp.type, x: sp.x, z: sp.z, yaw: sp.rot, dmg: 0, fixed: sp.fixed });
+    for (const sp of this.layout.vehicleSpawns) this.states.set('p' + sp.id, { type: sp.type, x: sp.x, z: sp.z, yaw: sp.rot, dmg: 0, fixed: sp.fixed, color: sp.color, locked: sp.locked, gangFlag: sp.gangFlag });
     this.current = null; this.seat = 0;
     this.streamT = 0;
     this.engines = new Map();
@@ -29,7 +30,7 @@ export class VehicleManager {
   onJoined(r) {
     // reset parked vehicles to layout defaults, then apply the room's moved/driven vehicles
     for (const v of [...this.vehicles.values()]) if (v !== this.current) this.removeVehicle(v);
-    for (const sp of this.layout.vehicleSpawns) this.states.set('p' + sp.id, { type: sp.type, x: sp.x, z: sp.z, yaw: sp.rot, dmg: 0, fixed: sp.fixed });
+    for (const sp of this.layout.vehicleSpawns) this.states.set('p' + sp.id, { type: sp.type, x: sp.x, z: sp.z, yaw: sp.rot, dmg: 0, fixed: sp.fixed, color: sp.color, locked: sp.locked, gangFlag: sp.gangFlag });
     for (const v of r.vehicles || []) this.onVehicleInfo(v);
   }
   onLeave() { if (this.current) this.exitLocal(true); }
@@ -69,15 +70,24 @@ export class VehicleManager {
   instantiate(id) {
     const st = this.states.get(id);
     if (!st) return null;
-    const v = new Vehicle(this, { id, type: st.type, x: st.x, y: st.y, z: st.z, yaw: st.yaw });
+    const v = new Vehicle(this, { id, type: st.type, color: st.color, x: st.x, y: st.y, z: st.z, yaw: st.yaw });
     v.dmg = st.dmg || 0;
     v.locked = !!st.locked;
     v.driver = st.driver || null; v.passengers = st.passengers || [];
     this.vehicles.set(id, v);
     this.game.engine.scene.add(v.group);
     this.game.world.collision.add(v.collider);
+    if (st.gangFlag) this.addGangFlagDecal(v);
     if (v.dmg >= 100) this.destroy(v, true);
     return v;
+  }
+  // A small painted flag decal on the hood — visually marks a Talon Crew car as their own,
+  // distinct from ordinary traffic (Stage 14 follow-up: "make it look different").
+  addGangFlagDecal(v) {
+    const mat = new THREE.MeshStandardMaterial({ map: gangFlagTexture(), transparent: true, alphaTest: 0.1, roughness: 0.7 });
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.56), mat);
+    decal.rotation.x = -Math.PI / 2; decal.position.set(0, v.spec.height * 0.82 + 0.02, v.spec.length * 0.22);
+    v.group.add(decal);
   }
   removeVehicle(v) {
     const st = this.states.get(v.id);

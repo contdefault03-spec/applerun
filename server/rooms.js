@@ -456,6 +456,13 @@ export class RoomManager {
     if (!v && typeof d.id === 'string' && d.id.startsWith('p')) {
       const sp = layout.vehicleSpawns[+d.id.slice(1)];
       if (!sp) return { ok: false, error: 'no such vehicle' };
+      // gang cars stay locked per-room until that room's own gangClear claims it — `sp.locked` is
+      // shared map data (same object across every room on this process), so the per-room
+      // gangClear Set is the actual source of truth, not a mutation of the shared layout.
+      if (sp.locked) {
+        const m = /^gang(\d+)_/.exec(sp.fixed || '');
+        if (!m || !room.gangClear?.has(+m[1])) return { ok: false, error: 'This car is guarded' };
+      }
       v = { id: d.id, type: sp.type, s: [sp.x, 0, sp.z, sp.rot, 0, 0, 0, 0, 0], driver: null, passengers: [], dmg: 0, touched: now() };
       room.vehicles.set(v.id, v);
     }

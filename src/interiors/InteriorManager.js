@@ -72,7 +72,7 @@ export class InteriorManager {
     const size = { house: [14, 12], apartment: [12, 10], safehouse: [14, 12], office: [18, 14], shop: [14, 11], restaurant: [16, 12], bar: [14, 11], nightclub: [20, 16], hotel: [20, 15], gunstore: [13, 10], police: [22, 15], hospital: [22, 15], gym: [18, 14], garage: [16, 12], warehouse: [26, 18], dome: [34, 28],
       clinic: [15, 11], dentist: [14, 11], pharmacy: [13, 10], supermarket: [18, 14], barber: [11, 9], bank: [16, 12], arcade: [16, 13], cinema: [22, 18], concert: [30, 24] }[type] || [12, 10];
     const [W, D] = size;
-    const H = type === 'warehouse' || type === 'dome' ? 7 : type === 'gym' || type === 'garage' ? 5 : 3.2;
+    const H = type === 'warehouse' || type === 'dome' ? 7 : type === 'cinema' ? 9 : type === 'concert' ? 11 : type === 'gym' || type === 'garage' ? 5 : 3.2;
     const it = { bid, type, name: NAMES[type] || 'Building', group: g, origin: o, W, D, H, colliders: [], seats: [], uses: [], npcSpots: [], lights: [], residential: RESIDENTIAL.has(type) };
     const b = this.building(bid);
     if (b.special === 'safehouse') { it.type = 'safehouse'; it.name = NAMES.safehouse; it.residential = false; it.owned = true; }
@@ -370,13 +370,18 @@ export class InteriorManager {
           place(Prefabs.chair('#4a148c'), x, z, Math.PI);
           if (rnd() < 0.5) it.npcSpots.push({ x, z: z + 0.35, role: 'civilian', sit: true });
         }
-        // screen, at the far wall
-        const screenW = W * 0.85, screenH = screenW * 9 / 16;
+        // screen, at the far wall — sized to actually fit the room's own ceiling height, with
+        // headroom above and below (was previously sized from width alone and could poke through
+        // a 3.2m ceiling; the room is now tall enough on its own, but this stays height-aware so
+        // it can never happen again if the room proportions change).
+        const screenBase = 0.6, screenMaxH = H - screenBase - 1.4;
+        let screenW = W * 0.85, screenH = screenW * 9 / 16;
+        if (screenH > screenMaxH) { screenH = screenMaxH; screenW = screenH * 16 / 9; }
         const screenMat = mat('#0a0a0a', { emissive: '#111111', emissiveIntensity: 0 });
         const screen = new THREE.Mesh(new THREE.PlaneGeometry(screenW, screenH), screenMat);
-        screen.position.set(0, screenH / 2 + 0.6, -D / 2 + 0.15); g.add(screen);
+        screen.position.set(0, screenH / 2 + screenBase, -D / 2 + 0.15); g.add(screen);
         const frame = new THREE.Mesh(new THREE.BoxGeometry(screenW + 0.4, screenH + 0.4, 0.1), mat('#1b1b1b'));
-        frame.position.set(0, screenH / 2 + 0.6, -D / 2 + 0.05); g.add(frame);
+        frame.position.set(0, screenH / 2 + screenBase, -D / 2 + 0.05); g.add(frame);
         it.screen = { mesh: screen, mat: screenMat };
         it.uses.push({ x: 0, z: -D / 2 + 1.3, kind: 'cinemaPlay', label: 'Press E to play/stop the movie' });
         break;
