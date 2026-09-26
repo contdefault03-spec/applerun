@@ -401,6 +401,62 @@ in this round (each already has its own commit message with full detail):
   reactions and a backstage room; networked dolma-stock state (each client currently tracks its
   own restock timer locally, so two players could theoretically see the same counter differently).
 
+## v1.3 (new major feature: the story intro + a round of fixes)
+Content-rule change (owner-directed): `CLAUDE.md`'s "no real brands/logos" restriction is lifted
+for v1.3. The fictional "Talon Crew" gang still has no connection to any real nationality/flag.
+
+**New: the story intro** (`src/systems/StoryIntro.js`, plus menu/loading-screen work in
+`src/ui/UIManager.js`) — a cinematic loading screen (5 supplied images crossfading ~5s each, brand
+text, rotating status message), an intro launcher (Play Multiplayer / Play Solo / Skip Intro),
+character select restricted to 5 "core" characters (max/ajan/rize/masked/lucky), then: startgame.mp4
+→ forest ambush (12 enemies.glb enemies across 3 waves, players given pistols) → saver.mp4 →
+escape in startcar.glb (a real Vehicle using a loaded GLTF body via a new
+`setCustomModel()` hook) → a car chase (2 pursuers, destroyed after exactly 10 real hits each,
+tracked via a new `registerChaseHit()`) → escape.mp4 → spawn at a new beachside "Applerun Grand
+Hotel" landmark with exactly $50,000. Solo mode spawns the other 4 characters as simple AI
+companions. Multiplayer: a new host-authoritative `'story'` relay in `server/rooms.js` broadcasts
+every stage transition; only the host's client decides completion, every client (including the
+host) applies purely from the broadcast. Enemy/companion AI itself is client-simulated per player,
+consistent with this codebase's existing NPC/traffic trust model — documented explicitly in the
+file's own docblock. Verified end-to-end with a scripted run of the full state machine (all 3
+waves, both cutscene gates, both chase vehicles destroyed at exactly 10 hits, exact $50,000 grant)
+— zero errors. Not fully covered: a genuine multi-client synchronization test (verified the
+mechanism — host-only advancement, broadcast-applied — logically and via the single-client scripted
+run, but did not run a real 2-browser session against a live server for this feature specifically).
+
+**Fixed:**
+- Concert music: switched to the supplied `music4.mp3`; fixed real audibility bugs (source
+  position covered only a corner of the 30x24m hall, base gain too low against default bus
+  volumes) — wider ref/max, higher gain, wall-clock-derived start offset for rough multiplayer sync.
+- Dolma: buying now hands the player a real, visible `dollma.glb` held in-hand (not an invisible
+  inventory tick); press E anywhere to eat it; hold/eat/stock-depleted relayed to nearby players.
+- Every ambient AI vehicle (car/motorcycle) now has a visible low-poly driver/rider figure.
+- Pier: fishing boat was inside the pierEnd platform's own footprint — moved past the tip into
+  open water; the deck's collision height never matched its own visual mesh height — fixed both to
+  sea level so street and deck are now level.
+- NPCs (including police) no longer shoot through walls from the player's perspective — the
+  `shoot` state fired on distance alone with no line-of-sight check on the decision to fire at all.
+- Ski resort lift corridor was a raw near-vertical cliff — now a graded run; alpine rocks
+  recolored from brown to frosted white (they only ever spawn near the snow line).
+- Wanted-level instant-clear exploit closed server-side (decreases rate-limited to the client's
+  own slowest legitimate decay rate).
+
+**New (smaller):** pedestrians check traffic before crossing; dog walkers stay in the park;
+pedestrians occasionally walk in pairs; beach civilians can swap to `girl.glb` and actually swim
+(the Animator already had a full 'swim' pose nothing was using); much higher bench-sit/standing
+chance near the park; advertisement billboards (procedural fictional brands, real images turned
+out to be unusable — see Stage 15 above); cinema tickets actually gate playback; CS mode tracks
+real kill assists; K-map labels every interior type, the concert hall, combat arena and gang
+territory.
+
+**Not done this round** (flagged honestly, budgeted against "minimal token usage"): CS bomb/defuse
+objective (kept elimination-based); deeper basketball set-plays beyond the existing cuts/screens/
+switching; car turn indicators, more body varieties, a dealership; concert crowd reactions and a
+backstage room; pier cafés/buildings and dedicated pier pedestrian navigation (boat position and
+deck height were fixed; the rest wasn't attempted); a fully server-authoritative networked dolma
+stock ledger (uses the existing best-effort fx-relay pattern, same as other cosmetic sync in this
+codebase); player (as opposed to NPC) swimming animation/behavior.
+
 ## Useful tools
 | Command | What it does |
 |---|---|
