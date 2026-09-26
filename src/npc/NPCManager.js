@@ -116,8 +116,20 @@ export class NPCManager {
       if (park && Math.hypot(x - park.x, z - park.z) < Math.max(park.hx, park.hz) + 30) {
         if (role === 'civilian' || role === 'athlete') {
           const roll = Math.random();
-          if (roll < 0.2) npc.avatar.group.add(buildDog(DOG_COLORS[Math.floor(Math.random() * DOG_COLORS.length)]));
+          if (roll < 0.2) { npc.avatar.group.add(buildDog(DOG_COLORS[Math.floor(Math.random() * DOG_COLORS.length)])); npc.dogWalker = true; }
           else if (roll < 0.4) npc.jogger = true;
+        }
+      }
+      // Pedestrian groups: occasionally a second civilian spawns right alongside as a loose
+      // companion, sharing whatever wander target the leader picks (with a small side offset) so
+      // they read as walking together instead of every pedestrian being a lone individual.
+      if (role === 'civilian' && !npc.dogWalker && Math.random() < 0.15 && this.npcs.length < this.target - 1) {
+        const cid = `${identity}-mate`;
+        if (!this.active.has(cid)) {
+          this.active.add(cid);
+          const mate = new NPC(this, { role: 'civilian', variant: Math.floor(Math.random() * (VARIANTS.civilian || 1)), identity: cid, x: x + 1.2, y: test.y, z: z + 0.6, yaw: npc.avatar.yaw });
+          mate.groupLeader = npc; npc.groupMate = mate;
+          this.add(mate); this.npcs.push(mate);
         }
       }
       return this.add(npc);
@@ -167,6 +179,18 @@ export class NPCManager {
   pickWanderTarget(npc) {
     const p = npc.position;
     if (npc.interior) return null;
+    // Dog walkers amble around inside the park itself (a loose loop around the park's centre)
+    // instead of the generic road-following wander, which would otherwise pull them out onto the
+    // street edge like an ordinary pedestrian — and they pause more often, like a dog sniffing
+    // around, rather than walking briskly point-to-point.
+    if (npc.dogWalker) {
+      const park = this.layout.landmarks.plazaPark;
+      if (park && Math.hypot(p.x - park.x, p.z - park.z) < Math.max(park.hx, park.hz) + 30) {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * Math.max(park.hx, park.hz) * 0.8;
+        if (Math.random() < 0.3) { npc.state = 'idle'; npc.timer = 3 + Math.random() * 6; return null; }
+        return new THREE.Vector3(park.x + Math.cos(a) * r, 0, park.z + Math.sin(a) * r);
+      }
+    }
     // sometimes pop into a nearby building (they disappear inside)
     if (Math.random() < 0.06) {
       const d = this.game.interiors?.nearestDoor(p.x, p.z, 25);

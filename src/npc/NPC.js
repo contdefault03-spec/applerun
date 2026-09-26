@@ -123,6 +123,18 @@ export class NPC {
         break;
       case 'sit': case 'lie': face = null; break;
       case 'wander':
+        // a companion in a pedestrian group just follows the leader's own wander target (offset
+        // to one side) instead of picking its own — they read as walking together, not two
+        // strangers who happen to be near each other
+        if (this.groupLeader) {
+          if (this.groupLeader.state === 'dead' || !this.groupLeader.alive) { this.groupLeader = null; }
+          else if (this.groupLeader.target) {
+            const lt = this.groupLeader.target;
+            want = new THREE.Vector3(lt.x + Math.cos(this.groupLeader.heading) * 1.1, 0, lt.z - Math.sin(this.groupLeader.heading) * 1.1);
+            speed = this.prof.walk;
+            break;
+          }
+        }
         if (!this.target || this.timer <= 0 || pos.distanceTo(this.target) < 1) {
           this.target = this.mgr.pickWanderTarget(this);
           this.timer = 6 + Math.random() * 8;
