@@ -257,6 +257,36 @@ export function gangFlagTexture() {
   }, { repeat: false });
 }
 
+// v1.2 Stage 15: billboard/roadside advertisements for fictional in-game brands (procedurally
+// drawn — no real photos were available/usable, see STATUS.md). Each is a distinct little poster
+// design (logo mark + tagline), not just a word like the generic sign/graffiti textures.
+const AD_BRANDS = [
+  { bg: '#c62828', fg: '#ffffff', name: 'SPARKLE COLA', tag: 'Taste the Fizz', mark: 'bubbles' },
+  { bg: '#1565c0', fg: '#ffffff', name: 'ZOOMOTORS', tag: 'Drive Bold', mark: 'chevron' },
+  { bg: '#6a1b9a', fg: '#ffe4fb', name: 'THREADCO', tag: 'Fresh Fits', mark: 'hanger' },
+  { bg: '#00838f', fg: '#faff70', name: 'PIXEL ARCADE', tag: 'Game On', mark: 'joystick' },
+];
+export function adTexture(variant) {
+  const b = AD_BRANDS[variant % AD_BRANDS.length];
+  return canvasTex('ad' + variant, 512, 288, (g, w, h) => {
+    g.fillStyle = b.bg; g.fillRect(0, 0, w, h);
+    // a soft diagonal band for visual interest, plus a border frame
+    g.fillStyle = 'rgba(255,255,255,0.08)';
+    g.beginPath(); g.moveTo(0, h * 0.55); g.lineTo(w, h * 0.15); g.lineTo(w, h * 0.4); g.lineTo(0, h * 0.8); g.closePath(); g.fill();
+    g.strokeStyle = b.fg; g.lineWidth = 6; g.strokeRect(10, 10, w - 20, h - 20);
+    // a simple procedural mark per brand
+    g.fillStyle = b.fg; g.strokeStyle = b.fg;
+    const mx = 70, my = h / 2 - 10;
+    if (b.mark === 'bubbles') { for (const [dx, dy, r] of [[-20, -20, 16], [15, -35, 10], [0, 15, 22], [30, 5, 8]]) { g.beginPath(); g.arc(mx + dx, my + dy, r, 0, 7); g.fill(); } }
+    else if (b.mark === 'chevron') { g.lineWidth = 14; for (const off of [-22, 0, 22]) { g.beginPath(); g.moveTo(mx - 26, my - 30 + off); g.lineTo(mx + 10, my + off); g.lineTo(mx - 26, my + 30 + off); g.stroke(); } }
+    else if (b.mark === 'hanger') { g.lineWidth = 8; g.beginPath(); g.arc(mx, my - 28, 6, 0, 7); g.moveTo(mx, my - 22); g.lineTo(mx, my - 12); g.lineTo(mx - 34, my + 18); g.lineTo(mx + 34, my + 18); g.lineTo(mx, my - 12); g.stroke(); }
+    else { g.fillRect(mx - 6, my - 30, 12, 45); g.beginPath(); g.arc(mx, my + 15, 26, 0, 7); g.fill(); g.fillStyle = b.bg; g.beginPath(); g.arc(mx - 9, my + 10, 5, 0, 7); g.arc(mx + 9, my + 10, 5, 0, 7); g.fill(); }
+    g.fillStyle = b.fg; g.textAlign = 'left';
+    g.font = 'bold 46px Arial, sans-serif'; g.fillText(b.name, 130, h / 2 - 8);
+    g.font = 'italic 28px Arial, sans-serif'; g.fillText(b.tag, 130, h / 2 + 36);
+  }, { repeat: false, srgb: true });
+}
+
 export function signTexture(text, bg = '#1d2b3a', fg = '#ffffff') {
   return canvasTex('sign_' + text + bg, 512, 128, (g, w, h) => {
     g.fillStyle = bg; g.fillRect(0, 0, w, h);

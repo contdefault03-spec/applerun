@@ -764,7 +764,7 @@ function buildGangSites(rand, buildings) {
 // ---------------------------------------------------------------- props
 function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, graph) {
   const trees = [], palms = [], lamps = [], benches = [], lights = [], containers = [], cranes = [], boats = [], rocks = [], hydrants = [], bins = [], graffiti = [], fences = [];
-  const bollards = [], bikeRacks = [], busStops = [], signs = [], atms = [];
+  const bollards = [], bikeRacks = [], busStops = [], signs = [], atms = [], ads = [];
   // Street lamps along roads
   for (const r of roads) {
     const t = ROAD_TYPES[r.type];
@@ -890,7 +890,35 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, grap
         busStops.push({ x, z, rot: Math.atan2(-tz * side, tx * side) });
       }
     }
+    // Roadside billboards (Stage 15): spaced along the busiest roads (highway/main — which
+    // already run past downtown, the pier approach and the stadium/arena strip), so they land in
+    // "commercial areas, near major roads" without needing a separate placement pass.
+    if (r.type === 'highway' || r.type === 'main') {
+      let accAd = 100 + rand() * 80;
+      for (let i = 1; i < r.pts.length; i++) {
+        const [ax, az] = r.pts[i - 1], [bx, bz] = r.pts[i];
+        const seg = Math.hypot(bx - ax, bz - az);
+        accAd += seg;
+        if (accAd < 200) continue;
+        accAd = 0;
+        if (rand() < 0.45) continue;
+        const tx = (bx - ax) / seg, tz = (bz - az) / seg;
+        const side = rand() < 0.5 ? 1 : -1;
+        const off = r.width / 2 + 4.5;
+        const x = bx - tz * side * off, z = bz + tx * side * off;
+        const [px, py] = toPx(x, z);
+        if (isWaterPx(px, py)) continue;
+        if (overlaps(x, z, 4, 2, 0, 6)) continue;
+        ads.push({ x, z, rot: Math.atan2(-tz * side, tx * side), v: Math.floor(rand() * 4), big: true });
+      }
+    }
   }
+  // A few smaller ad panels on bus-stop shelters — "bus stops" from the brief, literally
+  for (const bs of busStops) if (rand() < 0.5) ads.push({ x: bs.x, z: bs.z, rot: bs.rot, v: Math.floor(rand() * 4), big: false, shelter: true });
+  // Guaranteed billboards at the pier entrance and downtown plaza, so "around the pier / near
+  // city centre" holds even on an unlucky road-spacing roll
+  if (L.pier) ads.push({ x: L.pier.x + L.pier.hx * 0.6, z: L.pier.z - L.pier.hz - 6, rot: Math.PI, v: 0, big: true });
+  if (L.fountainPlaza) ads.push({ x: L.fountainPlaza.x - L.fountainPlaza.hx - 5, z: L.fountainPlaza.z, rot: Math.PI / 2, v: 3, big: true });
   // Bike racks and shop/stop signs near buildings that face the street
   for (const b of buildings) {
     if (rand() < (b.type === 'shop' || b.type === 'clothing' || b.type === 'cafe' ? 0.5 : 0.04)) {
@@ -959,7 +987,7 @@ function buildProps(rand, roads, buildings, L, roadIndex, overlaps, onLand, grap
       fences.push({ x1: ax, z1: az, x2: bx, z2: bz });
     }
   }
-  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants, bollards, bikeRacks, busStops, signs, atms };
+  return { trees, palms, lamps, benches, containers, cranes, boats, rocks, hydrants, bins, graffiti, lifeguards, fences, plants, bollards, bikeRacks, busStops, signs, atms, ads };
 }
 function tryTreeFree(arr, x, z, rand) { arr.push({ x, z, s: 0.8 + rand() * 0.6, r: rand() * 6.28, v: rand() }); }
 

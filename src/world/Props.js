@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { getLayout } from '../../shared/map/layout.js';
 import { heightAt } from '../../shared/map/terrain.js';
+import { adTexture } from './textures.js';
 
 // Instanced props (trees, palms, lamps, furniture, containers, boats...).
 // Returns { group, colliders, lampHeads } — colliders are registered by World.
@@ -195,6 +196,54 @@ export function buildProps() {
   group.add(instanced(signGeo, vmat, signItems, (o, s) => { o.position.set(s.x, s.y, s.z); o.rotation.set(0, s.rot, 0); o.scale.setScalar(1); }));
   for (const s of signItems) colliders.push({ kind: 'pole', x: s.x, z: s.z, hx: 0.1, hz: 0.1, rot: 0, y0: -1, y1: s.y + 2.4 });
 
+  // Billboards / roadside ads (Stage 15) — a steel pole + frame + the ad panel itself. Each of
+  // the 4 fictional brand textures is shared across every billboard using it (one material per
+  // variant, like the building graffiti decals), so this stays cheap regardless of ad count.
+  // Panels use their own material's emissiveMap (pushed into adMaterials → env.neonMaterials) so
+  // they light up at night the same way shop signs and neon do.
+  const adMaterials = [];
+  const poleMat = M('#607d8b', { metalness: 0.5, roughness: 0.5 });
+  const adMatFor = (() => {
+    const cache = {};
+    return (v, big) => {
+      const key = v + (big ? 'b' : 's');
+      if (!cache[key]) {
+        const tex = adTexture(v);
+        const m = new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0, roughness: 0.8 });
+        cache[key] = m; adMaterials.push(m);
+      }
+      return cache[key];
+    };
+  })();
+  for (const ad of P.ads || []) {
+    const gy = y(ad.x, ad.z);
+    if (ad.big) {
+      const panelW = 4.2, panelH = panelW * 9 / 16, panelY = gy + 2.6 + panelH / 2;
+      const grp = new THREE.Group();
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.18, panelY, 0.18), poleMat);
+      pole.position.set(0, panelY / 2, 0); grp.add(pole);
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.3, panelH + 0.3, 0.15), M('#37474f'));
+      frame.position.set(0, panelY, 0); grp.add(frame);
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(panelW, panelH), adMatFor(ad.v, true));
+      panel.position.set(0, panelY, 0.09); grp.add(panel);
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(panelW, panelH), adMatFor(ad.v, true));
+      back.position.set(0, panelY, -0.09); back.rotation.y = Math.PI; grp.add(back);
+      grp.position.set(ad.x, 0, ad.z); grp.rotation.y = ad.rot;
+      grp.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      group.add(grp);
+      colliders.push({ kind: 'pole', x: ad.x, z: ad.z, hx: 0.15, hz: 0.15, rot: 0, y0: -1, y1: gy + panelY });
+    } else if (ad.shelter) {
+      // small panel on the bus-shelter's own back wall, facing outward with the shelter
+      const w2 = 0.9, h2 = 0.55;
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(w2, h2), adMatFor(ad.v, false));
+      const lx = 0.9, lz = 0.98, ly = gy + 1.3;
+      const c = Math.cos(ad.rot), s = Math.sin(ad.rot);
+      panel.position.set(ad.x + lx * c + lz * s, ly, ad.z - lx * s + lz * c);
+      panel.rotation.y = ad.rot;
+      group.add(panel);
+    }
+  }
+
   // Garden fences (low picket rail, gap left at the door side by the layout)
   const fenceGeo = new THREE.BoxGeometry(1, 1.0, 0.07);
   fenceGeo.translate(0.5, 0.5, 0);
@@ -215,7 +264,7 @@ export function buildProps() {
   group.add(instanced(atmGeo, atmMat, atmItems, (o, a) => { o.position.set(a.x, a.y, a.z); o.rotation.set(0, a.rot, 0); o.scale.setScalar(1); }));
   for (const a of atmItems) colliders.push({ kind: 'small', x: a.x, z: a.z, hx: 0.3, hz: 0.2, rot: a.rot, y0: -1, y1: a.y + 1.3 });
 
-  return { group, colliders, lampItems, trafficLights: tl, trafficHeads: tlHeads };
+  return { group, colliders, lampItems, trafficLights: tl, trafficHeads: tlHeads, adMaterials };
 }
 
 function containerTexture() {
