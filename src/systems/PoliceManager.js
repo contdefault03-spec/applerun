@@ -157,6 +157,7 @@ export class PoliceManager {
   update(dt, playing) {
     const g = this.game;
     if (!g.player) return;
+    if (g.storyIntro?.active()) return; // v1.3: no cops during the scripted intro — only after it finishes
     // delayed reports (911 calls)
     for (let i = this.reportQueue.length - 1; i >= 0; i--) {
       const r = this.reportQueue[i];

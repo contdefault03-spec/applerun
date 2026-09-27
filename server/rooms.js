@@ -388,6 +388,12 @@ export class RoomManager {
         room.broadcast({ t: 'story', phase: clean(m.phase, 24), data: m.data && typeof m.data === 'object' ? m.data : {} });
         return;
       }
+      case 'storySkip': {
+        // Host double-taps "8" during a cutscene to skip it for the whole room.
+        if (!room || room.hostId !== c.id) return;
+        room.broadcast({ t: 'storySkip' });
+        return;
+      }
       case 'wanted': {
         // Full server-side pursuit simulation (LOS, search states) isn't implemented — the
         // client still decides *when* it's seen/lost — but a client can no longer just claim

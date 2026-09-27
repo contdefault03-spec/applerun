@@ -3,6 +3,7 @@ import { NPC } from '../npc/NPC.js';
 import { Avatar } from '../characters/Avatar.js';
 import { PLAYABLE } from '../characters/defs.js';
 import { buildVehicle, setCustomModel } from '../vehicles/VehicleModels.js';
+import { STORY_ORIGIN, STORY_RADIUS } from './storyZone.js';
 
 // v1.3 "major new feature": a scripted story intro played once per session before free-roam
 // starts — character select -> startgame.mp4 -> forest ambush (12 enemies.glb enemies across 3
@@ -19,7 +20,7 @@ import { buildVehicle, setCustomModel } from '../vehicles/VehicleModels.js';
 // "server/host-authoritative for the important transitions" without a full deterministic-lockstep
 // rewrite of the whole cutscene, which was out of scope for this pass.
 export const STORY_CHARACTERS = PLAYABLE.slice(0, 5); // max, ajan, rize, masked, lucky
-const ORIGIN = new THREE.Vector3(3200, 0, 3200); // an isolated pocket, far from the real city
+const ORIGIN = STORY_ORIGIN; // an isolated pocket, far from the real city
 const WAVE_SIZE = 4, WAVE_COUNT = 3; // 12 enemies total
 const HITS_TO_DESTROY = 10;
 
@@ -33,9 +34,12 @@ export class StoryIntro {
     this.chaseCars = [];
     this.waveIdx = 0;
     this.forestGroup = null;
+    this.activeVideo = null;
     game.net.on('story', (m) => this.applyPhase(m.phase, m.data));
+    game.net.on('storySkip', () => this._finishVideo?.());
   }
 
+  active() { return this.phase !== 'idle' && this.phase !== 'done'; }
   isHost() {
     const g = this.game;
     return !g.net.connected || !g.net.room || g.net.room.hostId === g.net.id;
@@ -55,6 +59,8 @@ export class StoryIntro {
     this.solo = solo;
     this.killed = 0;
     this.waveIdx = 0;
+    this.phase = 'introVideo'; // marks the intro as "active" (see active()) from the very first frame
+    g.police?.clear(true); // no wanted level / cops during the scripted intro — see PoliceManager.update's guard
     await Promise.all([g.assets.ensureGltf('enemyChar'), g.assets.ensureGltf('startcar')]);
     setCustomModel('startcar', g.assets.gltf('startcar').scene);
     this.playVideo('introStart', () => { if (this.isHost()) this.advance('forestSpawn'); });
@@ -104,10 +110,36 @@ export class StoryIntro {
     video.autoplay = true;
     Object.assign(video.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', objectFit: 'contain', background: '#000', zIndex: 500 });
     document.body.appendChild(video);
-    video.addEventListener('ended', () => { video.remove(); this.blockInput = false; onEnd(); });
+    this.activeVideo = video;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey);
+      video.remove();
+      if (this.activeVideo === video) this.activeVideo = null;
+      if (this._finishVideo === finish) this._finishVideo = null;
+      this.blockInput = false;
+      onEnd();
+    };
+    this._finishVideo = finish; // called locally by a skip, or remotely via the 'storySkip' broadcast
+    video.addEventListener('ended', finish);
     video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
-    // no key/click listeners are attached to it at all — nothing can pause or skip it, and
-    // Game.update() short-circuits entirely while blockInput is set
+    // v1.3: the host can double-tap "8" (within 600ms) to skip the cutscene for the whole room —
+    // a raw keydown listener, since Game.update() (and its normal input-polling) is entirely
+    // short-circuited while blockInput is set, so the usual input.hit()-based binding can't see it.
+    let lastPress = 0;
+    const onKey = (e) => {
+      if (e.code !== 'Digit8' && e.key !== '8') return;
+      if (!this.isHost()) return;
+      const now = performance.now();
+      if (now - lastPress < 600) {
+        lastPress = 0;
+        if (g.net.connected && g.net.room) g.net.send('storySkip', {});
+        else finish();
+      } else lastPress = now;
+    };
+    document.addEventListener('keydown', onKey);
   }
 
   // ------------------------------------------------------------------ forest
@@ -147,12 +179,28 @@ export class StoryIntro {
     grp.position.copy(ORIGIN);
     g.engine.scene.add(grp);
     this.forestGroup = grp;
+    // v1.3 fix: hiding the outdoor group also hides the sky mesh, and this pocket never set its
+    // own scene.background or fog — every pixel not covered by the small 160x160 ground plane
+    // (i.e. most of what the camera sees looking anywhere but straight down) rendered pure black,
+    // "no forest, nothing there". Mirror what InteriorManager.enter does for the same reason.
+    this._savedEnv = { background: g.engine.scene.background, fogDensity: g.engine.scene.fog.density };
+    g.engine.scene.background = new THREE.Color('#131f14');
+    g.engine.scene.fog.density = 0.01;
+    g.world.env.setShadowsActive(false); // the real city's cascades don't reach out here anyway
     g.world.setOutdoorVisible(false); // hide the real city while we're in this isolated pocket
   }
   teardownForest() {
     if (!this.forestGroup) return;
+    const g = this.game;
     this.forestGroup.parent?.remove(this.forestGroup);
     this.forestGroup = null;
+    g.world.setOutdoorVisible(true);
+    g.world.env.setShadowsActive(true);
+    if (this._savedEnv) {
+      g.engine.scene.background = this._savedEnv.background;
+      g.engine.scene.fog.density = this._savedEnv.fogDensity;
+      this._savedEnv = null;
+    }
   }
 
   spawnPlayerInForest() {
@@ -282,11 +330,13 @@ export class StoryIntro {
   // ------------------------------------------------------------------ hotel finish
   async finish() {
     const g = this.game;
+    this.clearWaveEnemies();
+    this.clearChase();
     this.teardownForest();
     this.removeCompanions();
-    g.world.setOutdoorVisible(true);
     const hotel = g.layout.landmarks.storyHotel || g.layout.landmarks.plazaPark;
     g.player.teleport(hotel.x, null, hotel.z, 0);
+    g.police?.clear(true);
     // an exact $50,000 balance (not an add-on-top reward) — handled server/LocalBackend-side so
     // it can't be granted twice by re-entering this phase
     const res = await g.net.request('reward', { kind: 'storyStart' });
@@ -294,6 +344,29 @@ export class StoryIntro {
     this.phase = 'done';
     g.ui.bigMessage?.('WELCOME TO APPLERUN', 'You start with $50,000. The city is yours.', 6, '#7dff9b');
   }
+
+  /** v1.3 fix: if the player bails out of the intro early (pause menu -> quit to main menu, or
+   * dies mid-sequence) instead of reaching the natural finish() above, nothing ever restored the
+   * real city / lighting / police — "exit to main menu, the full game is all black". Called from
+   * Game.toMainMenu()/respawn() so every exit path leaves the world in a normal state. */
+  abort() {
+    if (!this.active()) return;
+    const g = this.game;
+    this._finishVideo?.(); // remove any cutscene overlay immediately, don't wait for 'ended'
+    this.clearWaveEnemies();
+    this.clearChase();
+    this.removeCompanions();
+    this.teardownForest();
+    g.police?.clear(true);
+    this.phase = 'idle';
+    // if the player is still standing in (or near) the forest pocket, they'd otherwise be dropped
+    // into open ocean once the pocket's ground override no longer applies to them
+    if (g.player && Math.hypot(g.player.pos.x - ORIGIN.x, g.player.pos.z - ORIGIN.z) < STORY_RADIUS + 40) {
+      const sp = g.layout.spawnPoints[0];
+      g.player.teleport(sp.x, null, sp.z);
+    }
+  }
+  onLeave() { this.abort(); }
 
   // ------------------------------------------------------------------ per-frame
   update(dt, playing) {

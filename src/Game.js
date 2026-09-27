@@ -287,6 +287,7 @@ export class Game {
     this.showMenu();
   }
   respawn(reason) {
+    this.storyIntro?.abort(); // dying mid-intro must still restore the real city/police/lighting
     const sp = this.layout.spawnPoints[0];
     this.player.teleport(sp.x, null, sp.z);
     void reason;

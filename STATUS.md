@@ -482,6 +482,57 @@ Verified via `tools/views.mjs`'s `menu` view + a scripted check: canvas `visibil
 menu mode, all 4 buttons render, and the Settings modal opens with the Low/Medium/High preset
 selector intact. `npm test`: 12/12.
 
+## v1.3 follow-up: story-intro was broken end to end — root-caused and fixed
+The owner reported the story intro was unplayable: a black screen with nobody visible right after
+the forest ambush spawned, the escape car falling through the map after `saver.mp4` with a hard-
+landing "stars" effect, cops able to spawn during the scripted intro, and — worst — the *real* city
+coming back all-black after quitting to the main menu mid-intro. All four were real bugs, root-
+caused and fixed (not papered over):
+
+- **The fall-through**: the forest/chase pocket sits at world coordinates (3200, 3200), deliberately
+  far outside the real map so it can't collide with anything. But `Collision.groundAt()` (used by
+  every NPC's ground-snap and every vehicle's suspension) had no idea that pocket existed — for any
+  x/z that far out, `heightAt()` falls back to `SEA_FLOOR` (open ocean, y=-18). The escape car spawns
+  at y=0, gravity pulls it toward the "ground" at -18, it hits hard 18 units down (triggering the
+  vehicle's hard-landing impact effect — the "stars"), and enemies in the forest fight were
+  sinking the same way, standing distance yielding the reported "no one there". Fixed with one
+  shared check: new `src/systems/storyZone.js` exports the pocket's origin/radius, and
+  `Collision.groundAt()` now returns flat ground (y=0) for any point inside it — this fixes NPCs,
+  the escape car and the chase cars all at once, at the source, instead of patching each actor
+  individually.
+- **The black screen**: `buildForest()` hides the real city (including its sky mesh) via
+  `setOutdoorVisible(false)`, exactly like entering a building interior does — but unlike
+  `InteriorManager.enter()`, it never set its own `scene.background` or fog. Every pixel not
+  covered by the small 160x160 ground plane (which is most of what the camera sees looking anywhere
+  but straight down) rendered pure render-black. Fixed the same way interiors already do it: save
+  and restore `scene.background`/fog density around the forest, plus pause shadow-map updates
+  (`env.setShadowsActive(false)`) since the real city's cascades don't reach out there anyway.
+- **Cops during the intro**: `PoliceManager.update()` now returns immediately while
+  `storyIntro.active()` is true (any phase except idle/done) — no wanted level, no spawns, no
+  chases until the intro reaches its normal end (`finish()`), which also explicitly clears wanted
+  level so the free-roam game starts clean.
+- **Black city after quitting mid-intro**: neither `Game.toMainMenu()` nor `Game.respawn()` (dying
+  mid-fight) ever told the story intro to clean up — the forest, the hidden outdoor group, the
+  swapped-out background/fog all stayed in whatever state the player abandoned them in, so the
+  "full game" they returned to really was still hidden behind those overrides. Added
+  `StoryIntro.abort()` (removes any stuck cutscene video, clears enemies/chase/escape-car/
+  companions, restores the city/lighting/police, and teleports the player back to a normal spawn if
+  they're still standing in the pocket) wired to `Game.toMainMenu()` via the existing generic
+  `onLeave()` system hook, and to `Game.respawn()` directly for the mid-fight-death case.
+- **New: host can skip a cutscene for the room.** While any of the three intro videos is playing,
+  the host can double-tap "8" within 600ms to skip it for every player in the room — a new
+  `storySkip` relay message in `server/rooms.js` (host-only, broadcasts to everyone including the
+  sender, same pattern as the existing `story` relay), applied via a raw `keydown` listener in
+  `StoryIntro.playVideo()` (the normal per-frame `input.hit()` binding can't see it, since
+  `Game.update()` is entirely short-circuited while a cutscene blocks input). Solo play skips
+  immediately with no network round-trip.
+
+Verified with a scripted run: forced `forestSpawn` → confirmed background/fog/shadows are set and
+enemies hold their spawn height (not sinking) over 150 simulated frames; forced `escapeCar` →
+confirmed the vehicle holds y=0 over 150 simulated frames (previously it would have reached the
+sea floor); called `abort()` mid-intro → confirmed outdoor visibility, background, fog and player
+position are all correctly restored to normal city defaults. `npm test`: 12/12.
+
 ## Useful tools
 | Command | What it does |
 |---|---|
