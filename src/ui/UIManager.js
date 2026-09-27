@@ -71,7 +71,8 @@ export class UIManager {
     const g = this.game;
     g.setMode('menu');
     const item = (label, sub, fn) => h('button.menu-btn', { onclick: () => { this.click(); fn(); }, onmouseenter: () => g.audio.ui('hover') }, label, sub ? h('small', sub) : null);
-    const el = h('div.screen.alley',
+    // v1.3: the owner's own generated art of the 5 crew characters, as the front-door menu image.
+    const el = h('div.screen.crew-bg', { style: { backgroundImage: 'url(/assets/ui/menu-crew.jpg)' } },
       h('div.menu-left',
         h('div.logo', 'ALFREDO', h('br'), 'APPLERUN'),
         h('div.tagline', 'A crew, a bad night, a long way home.'),

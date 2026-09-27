@@ -90,6 +90,15 @@ kbd { display: inline-block; min-width: 24px; text-align: center; padding: 3px 7
 }
 @keyframes rainFall { from { transform: translateY(-40px); } to { transform: translateY(40px); } }
 @keyframes lampFlicker { 0%, 92%, 100% { opacity: 1; } 94% { opacity: .7; } 96% { opacity: .95; } 97% { opacity: .55; } }
+/* v1.3: the intro launcher's front-door image (the owner's own generated crew art) — a single
+   static background-image is effectively free to render (no per-frame cost, unlike the old live
+   city flythrough), just needs a scrim so the left-side menu text stays readable over it. */
+.screen.crew-bg { background-size: cover; background-position: center 30%; }
+.screen.crew-bg::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(5,6,9,0.94) 0%, rgba(5,6,9,0.75) 32%, rgba(5,6,9,0.15) 60%, transparent 78%),
+    linear-gradient(0deg, rgba(5,6,9,0.55) 0%, transparent 30%);
+}
 .menu-left { position: relative; z-index: 1; width: 440px; padding: 56px 48px; display: flex; flex-direction: column; background: linear-gradient(90deg, rgba(7,9,15,0.92), rgba(7,9,15,0.55) 80%, transparent); }
 .menu-left .logo { font-family: var(--display); font-size: 60px; white-space: nowrap; line-height: .9; letter-spacing: .05em; background: linear-gradient(135deg, #fff, var(--accent2) 40%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .menu-left .tagline { color: var(--muted); font-weight: 700; letter-spacing: .25em; text-transform: uppercase; font-size: 12px; margin: 6px 0 38px; }

@@ -21,6 +21,16 @@ polyhaven.com / ambientcg.com).
 | `public/assets/video/cinema.mp4` | Film played on the in-game cinema screen (v1.2) |
 | `public/assets/audio/concert.mp3` | Music played inside the concert hall (v1.2) |
 | `public/assets/audio/gang.mp3` | Gang-encounter warning cue, played before an attack (v1.2) |
+| `public/assets/audio/music4.mp3` | Concert-hall music (v1.3) |
+| `public/assets/characters/girl.glb` | Beach NPC character model (v1.3) |
+| `public/assets/characters/enemies.glb` | Story-intro enemy character model (v1.3) |
+| `public/assets/props/dollma.glb` | Held/eaten dolma item model (v1.3) |
+| `public/assets/vehicles/startcar.glb` | Story-intro escape car model (v1.3) |
+| `public/assets/video/startgame.mp4` | Story-intro opening cutscene (v1.3) |
+| `public/assets/video/saver.mp4` | Story-intro mid cutscene (v1.3) |
+| `public/assets/video/escape.mp4` | Story-intro closing cutscene (v1.3) |
+| `public/assets/loading/loading1.png` … `loading5.png` | Cinematic loading-screen artwork (v1.3) |
+| `public/assets/ui/menu-crew.jpg` | Owner-generated artwork of the game's 5 playable characters, used as the intro-launcher menu background (v1.3) |
 
 ## Skies / HDRIs (Poly Haven, CC0)
 
